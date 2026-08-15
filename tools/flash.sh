@@ -33,12 +33,14 @@ usage() {
 USAGE
 }
 
+# EXPECT: そのドライブに現在入っているはずの側。左右を取り違えた書き込みを止めるのに使う。
+# reset は左右どちらにも流すので判定しない。
 case "${1:-}" in
-    reset)        SRC="$FIRMWARE_DIR/settings_reset.uf2" ;;
-    left  | l)    SRC="$FIRMWARE_DIR/CLine46_L.uf2" ;;
-    right | r)    SRC="$FIRMWARE_DIR/CLine46_R.uf2" ;;
+    reset)        SRC="$FIRMWARE_DIR/settings_reset.uf2"; EXPECT="" ;;
+    left  | l)    SRC="$FIRMWARE_DIR/CLine46_L.uf2";      EXPECT="CLine46_L" ;;
+    right | r)    SRC="$FIRMWARE_DIR/CLine46_R.uf2";      EXPECT="CLine46_R" ;;
     "" | -h | --help) usage; exit 1 ;;
-    *)            SRC="$1" ;;
+    *)            SRC="$1"; EXPECT="" ;;
 esac
 
 if [ ! -f "$SRC" ]; then
@@ -48,6 +50,11 @@ fi
 
 find_volume() {
     local volume
+    # CLINE46_VOLUME で書き込み先を明示できる（動作確認用、複数ドライブがあるとき用）
+    if [ -n "${CLINE46_VOLUME:-}" ]; then
+        printf '%s' "$CLINE46_VOLUME"
+        return 0
+    fi
     for volume in /Volumes/*; do
         if [ -f "$volume/INFO_UF2.TXT" ]; then
             printf '%s' "$volume"
@@ -80,6 +87,37 @@ fi
 echo "ブートローダーを検出: $VOLUME"
 if [ -f "$VOLUME/INFO_UF2.TXT" ]; then
     sed -n '1,3p' "$VOLUME/INFO_UF2.TXT" | sed 's/^/  /'
+fi
+
+# このドライブが左右どちらかを、CURRENT.UF2（現在のフラッシュ内容）から判定する。
+# このスクリプトは最初に見つけたドライブに書くだけなので、反対側をダブルリセット
+# していると逆のファームが入ってしまう。それを書き込む前に止める。
+identify_side() {
+    local identify="$REPO_ROOT/tools/identify_half.py"
+    [ -f "$VOLUME/CURRENT.UF2" ] || return 1
+    [ -f "$identify" ] || return 1
+    command -v python3 >/dev/null || return 1
+    [ -f "$FIRMWARE_DIR/CLine46_L.uf2" ] && [ -f "$FIRMWARE_DIR/CLine46_R.uf2" ] || return 1
+    python3 "$identify" "$VOLUME/CURRENT.UF2" \
+        "$FIRMWARE_DIR/CLine46_L.uf2" "$FIRMWARE_DIR/CLine46_R.uf2" 2>/dev/null | head -1
+}
+
+TOP="$(identify_side)"
+if [ -n "${TOP:-}" ]; then
+    SIDE="${TOP%% *}"
+    SCORE="${TOP##* }"
+    echo "  現在の中身: $SIDE に ${SCORE}% 一致"
+    # 一致率が低いときは判定できない（別のファームや空など）ので何も言わない
+    if [ "${SCORE%%.*}" -ge 50 ] && [ -n "$EXPECT" ] && [ "$SIDE" != "$EXPECT" ]; then
+        echo >&2
+        echo "中断: 反対側に書き込もうとしています。" >&2
+        echo "  書き込もうとしたもの: $(basename "$SRC")" >&2
+        echo "  このドライブの中身  : $SIDE" >&2
+        echo "  もう片方をダブルリセットし直してください。" >&2
+        echo "  意図的に行う場合は CLINE46_YES=1 を付けて実行します。" >&2
+        [ "${CLINE46_YES:-}" = "1" ] || exit 1
+        echo "CLINE46_YES=1 のため続行します。" >&2
+    fi
 fi
 
 # Finder が過去に書いたメタデータが残っていると容量不足になることがあるので掃除する

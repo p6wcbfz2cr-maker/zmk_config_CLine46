@@ -67,6 +67,42 @@ AppleDouble メタデータ（`._` で始まるファイル）や Spotlight の�
 スクリプトは `cp -X`（拡張属性を付けない）でコピーし、事前に残留メタデータの掃除と
 Spotlight インデックスの無効化を行うため、この問題を回避できる。
 
+### 左右の取り違え防止
+
+スクリプトは `/Volumes/*` の中で `INFO_UF2.TXT` を持つ**最初のドライブ**に書き込む。
+XIAO は左右で見分けが付かないため、これだけだと反対側をダブルリセットしたときに
+逆のファームが入ってしまう。
+
+そこで書き込む前に、ドライブの `CURRENT.UF2`（＝現在フラッシュに入っている内容）を
+`firmware/` の uf2 と突き合わせて、どちら側かを判定している。
+
+```
+ブートローダーを検出: /Volumes/XIAO-SENSE
+  現在の中身: CLine46_L に 100.0% 一致
+
+中断: 反対側に書き込もうとしています。
+  書き込もうとしたもの: CLine46_R.uf2
+  このドライブの中身  : CLine46_L
+```
+
+設定リセット直後でも判定できる。`settings_reset` は先頭 60KB ほどしか使わず、
+その先には前のファームが残るため、L と R のどちらに近いかで区別が付く。
+
+| 環境変数 | 効果 |
+|---|---|
+| `CLINE46_YES=1` | 取り違えの警告を無視して書き込む |
+| `CLINE46_VOLUME` | 書き込み先のドライブを明示する（動作確認用） |
+| `CLINE46_FIRMWARE_DIR` | uf2 の置き場（既定は `firmware/20260816_zmk4.1_dya-studio`） |
+| `CLINE46_TIMEOUT` | ブートローダー待ちの秒数（既定 60） |
+
+判定だけを単独で行うこともできる。
+
+```bash
+python3 tools/identify_half.py /Volumes/XIAO-SENSE/CURRENT.UF2 \
+    firmware/20260816_zmk4.1_dya-studio/CLine46_L.uf2 \
+    firmware/20260816_zmk4.1_dya-studio/CLine46_R.uf2
+```
+
 ### 手動で行う場合
 
 ```bash
