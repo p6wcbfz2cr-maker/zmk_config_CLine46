@@ -62,6 +62,7 @@ DYA Studio はブラウザから ZMK キーボードを設定する Web アプ�
 | Macro | ◎ | `zmk-feature-runtime-macro` |
 | Combo | ◎ | `zmk-feature-runtime-combo` |
 | Trackball（感度・回転・スクロール・一時レイヤー） | ○ | `zmk-module-runtime-input-processor` |
+| Trackball のスクロール専用チェーン（レイヤー3 = `SCROLL` 中の速度・XY反転） | ○ | `CLine46_R.overlay` の `scroller` が `scroll_runtime_input_processor` を使用 |
 | Trackball（PMW3610 の省電力など詳細設定） | △ | ドライバが `badjeff/zmk-pmw3610-driver`。cormoran の `zmk-driver-pmw3610-with-custom-studio-rpc` ではないため出ない可能性が高い |
 | Connection（BLE プロファイル） | ○ | `zmk-module-ble-management` |
 | Connection（接続先別デフォルトレイヤー） | ○ | `zmk-feature-default-layer` |
@@ -75,6 +76,12 @@ DYA Studio はブラウザから ZMK キーボードを設定する Web アプ�
 | バッテリー履歴 | × | `CONFIG_ZMK_BATTERY_HISTORY` はコメントアウト（保存が遅い問題のため上流で無効化中） |
 
 > 残りのタブを確認したら ○ を ◎ に更新する。
+
+`zmk-module-runtime-input-processor` を使うノードは Studio の Trackball 設定に
+processor 単位で個別に表示される。CLine46 では現在 `mouse`（通常のポインター移動、
+`CLine46_R.overlay` トップレベルの `input-processors`）と `scroll`（レイヤー3 = `SCROLL`
+専用の `scroller` チェーン）の 2 つが並んで表示され、それぞれ独立に速度
+（`scale-multiplier`/`scale-divisor`）・向き反転（X/Y invert）などを変更できる。
 
 ### 周辺側（左手側）を Studio から見るために必要な設定
 
