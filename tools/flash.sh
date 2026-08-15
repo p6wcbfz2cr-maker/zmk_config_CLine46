@@ -97,18 +97,39 @@ identify_side() {
     [ -f "$VOLUME/CURRENT.UF2" ] || return 1
     [ -f "$identify" ] || return 1
     command -v python3 >/dev/null || return 1
-    [ -f "$FIRMWARE_DIR/CLine46_L.uf2" ] && [ -f "$FIRMWARE_DIR/CLine46_R.uf2" ] || return 1
-    python3 "$identify" "$VOLUME/CURRENT.UF2" \
-        "$FIRMWARE_DIR/CLine46_L.uf2" "$FIRMWARE_DIR/CLine46_R.uf2" 2>/dev/null | head -1
+
+    # 照合先は「今から焼こうとしている置き場」だけでは足りない。ドライブに入って
+    # いるのは前の世代のファームかもしれないので、firmware/ 配下も全部候補にする。
+    local -a refs=()
+    local f
+    shopt -s nullglob
+    for f in "$REPO_ROOT"/firmware/*/CLine46_[LR]*.uf2; do
+        refs+=("$f")
+    done
+    case "$FIRMWARE_DIR" in
+        "$REPO_ROOT"/firmware/*) ;;   # 上の glob に含まれているので足さない
+        *) for f in "$FIRMWARE_DIR"/CLine46_[LR]*.uf2; do refs+=("$f"); done ;;
+    esac
+    shopt -u nullglob
+
+    [ ${#refs[@]} -gt 0 ] || return 1
+    python3 "$identify" "$VOLUME/CURRENT.UF2" "${refs[@]}" 2>/dev/null | head -1
 }
 
 TOP="$(identify_side)"
 if [ -n "${TOP:-}" ]; then
-    SIDE="${TOP%% *}"
+    # ラベルには空白が入りうる（例: "CLine46_L rgbled_adapter-seeeduino_xiao_ble-zmk"）
+    # ので、末尾の一致率だけを切り出す。
     SCORE="${TOP##* }"
-    echo "  現在の中身: $SIDE に ${SCORE}% 一致"
+    LABEL="${TOP% *}"
+    case "$LABEL" in
+        CLine46_L*) SIDE="CLine46_L" ;;
+        CLine46_R*) SIDE="CLine46_R" ;;
+        *)          SIDE="" ;;
+    esac
+    echo "  現在の中身: $LABEL に ${SCORE}% 一致"
     # 一致率が低いときは判定できない（別のファームや空など）ので何も言わない
-    if [ "${SCORE%%.*}" -ge 50 ] && [ -n "$EXPECT" ] && [ "$SIDE" != "$EXPECT" ]; then
+    if [ -n "$SIDE" ] && [ "${SCORE%%.*}" -ge 50 ] && [ -n "$EXPECT" ] && [ "$SIDE" != "$EXPECT" ]; then
         echo >&2
         echo "中断: 反対側に書き込もうとしています。" >&2
         echo "  書き込もうとしたもの: $(basename "$SRC")" >&2
