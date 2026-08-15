@@ -27,6 +27,10 @@ on:
   push:
     paths:
       - ".github/workflows/build-elf.yml"
+      # ファームが変わるたびに ELF を残す。クラッシュ記録の PC/LR は
+      # 実機に載っているバイナリと同じ ELF でないと解決できないため。
+      - "boards/shields/CLine46/**"
+      - "config/**"
 
 jobs:
   build-elf:
