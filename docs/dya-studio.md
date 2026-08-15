@@ -65,7 +65,7 @@ DYA Studio はブラウザから ZMK キーボードを設定する Web アプ�
 | Trackball（PMW3610 の省電力など詳細設定） | △ | ドライバが `badjeff/zmk-pmw3610-driver`。cormoran の `zmk-driver-pmw3610-with-custom-studio-rpc` ではないため出ない可能性が高い |
 | Connection（BLE プロファイル） | ○ | `zmk-module-ble-management` |
 | Connection（接続先別デフォルトレイヤー） | ○ | `zmk-feature-default-layer` |
-| Connection（OS 自動検出） | ○ | `zmk-feature-os-detection`（`3052679f`）+ `CONFIG_ZMK_OS_DETECTION_*` |
+| Connection（OS 自動検出） | ◎ | `zmk-feature-os-detection`（`3052679f`）+ `CONFIG_ZMK_OS_DETECTION_*` |
 | Connection（OS 別レイヤー自動切替） | × | `CONFIG_ZMK_OS_DETECTION_LAYER_AUTO_SWITCH` を有効にしていない |
 | Settings（idle / sleep） | ○ | `zmk-module-settings-rpc` |
 | Settings（詳細設定） | ○ | `CONFIG_ZMK_CUSTOM_SETTINGS=y`（`runtime-macro` / `runtime-combo` の `import: true` 経由で取り込まれる） |
@@ -126,7 +126,8 @@ CONFIG_ZMK_OS_DETECTION_LAYER_WINDOWS=6
 | キー位置がずれる | `CLine46.dtsi` の physical layout と `default_transform`、`python3 tools/check_keymap.py` |
 | OS の判定がおかしい | 「判別の限界」を確認したうえで、Connection タブから手動で上書きする。USB は 200ms、BLE は 1000ms のデバウンス後に確定するので、つないだ直後は `Unknown` のことがある |
 | OS 自動検出を入れてから BLE が不安定 | `CONFIG_ZMK_OS_DETECTION_BLE_GATT_CLIENT_PROBE=n` にして切り分ける。それでも駄目なら `CONFIG_ZMK_OS_DETECTION_BLE=n`（`BT_GATT_AUTHORIZATION_CUSTOM` を select しなくなる） |
-| 周辺側タブが `Peripheral did not respond (timed out after 3000ms)` | `CLine46_L.conf` に `CONFIG_ZMK_SPLIT_RELAY_EVENT=y` があるか。これが無いと peripheral が relay 用のキャラクタリスティックを公開しない。`DATA_LEN` も R 側と揃える |
+| 周辺側タブが `Peripheral did not respond (timed out after 3000ms)` | `CLine46_L.conf` に `CONFIG_ZMK_SPLIT_RELAY_EVENT=y` と `CONFIG_ZMK_WATCHDOG=y` があるか。前者が無いと relay 用のキャラクタリスティックを公開せず、後者が無いと中継されてきた要求に答える相手がいない（`ZMK_WATCHDOG_SPLIT_RELAY` は `if ZMK_WATCHDOG` の中にある）|
+| 周辺側タブを開くと Studio が切断される | 中央側が落ちている。`CLine46_L.conf` の `CONFIG_ZMK_LOW_PRIORITY_THREAD_STACK_SIZE` / `CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE` を R 側と同じ 4096 にする。peripheral も応答を nanopb で組み立てるため、既定のスタックでは足りない |
 | 左右が繋がらない / BLE が不安定（4.1 系） | `CONFIG_BT_CTLR_ASSERT_OVERHEAD_START=n` が左右に入っているか。詳細は `docs/build-and-flash.md` の「3.5」 |
 
 ## 設定ファイルとの関係（重要）
