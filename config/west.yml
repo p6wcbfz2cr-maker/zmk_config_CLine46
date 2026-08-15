@@ -66,6 +66,11 @@ manifest:
     - name: zmk-feature-module-physical-layout
       remote: cormoran
       revision: 4f18de45dc27820725d267916b4cdacc0e0b6cf9
+    - name: zmk-feature-os-detection
+      remote: cormoran
+      # main @ 2026-07-19 (no tags published for this module)
+      revision: 3052679f645b8fc1997275c2eaa6b86bdd55ca01
+      import: true
 
     #その他のモジュール
     - name: zmk-pmw3610-driver

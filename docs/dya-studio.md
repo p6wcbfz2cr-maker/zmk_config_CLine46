@@ -65,15 +65,73 @@ DYA Studio はブラウザから ZMK キーボードを設定する Web アプ�
 | Trackball（PMW3610 の省電力など詳細設定） | △ | ドライバが `badjeff/zmk-pmw3610-driver`。cormoran の `zmk-driver-pmw3610-with-custom-studio-rpc` ではないため出ない可能性が高い |
 | Connection（BLE プロファイル） | ○ | `zmk-module-ble-management` |
 | Connection（接続先別デフォルトレイヤー） | ○ | `zmk-feature-default-layer` |
-| Connection（OS 自動検出と OS 別レイヤー） | × | `zmk-feature-os-detection` が west.yml に無い |
+| Connection（OS 自動検出） | ◎ | `zmk-feature-os-detection`（`3052679f`）+ `CONFIG_ZMK_OS_DETECTION_*` |
+| Connection（OS 別レイヤー自動切替） | × | `CONFIG_ZMK_OS_DETECTION_LAYER_AUTO_SWITCH` を有効にしていない |
 | Settings（idle / sleep） | ○ | `zmk-module-settings-rpc` |
 | Settings（詳細設定） | ○ | `CONFIG_ZMK_CUSTOM_SETTINGS=y`（`runtime-macro` / `runtime-combo` の `import: true` 経由で取り込まれる） |
 | Troubleshooting（Device Info） | ◎ | `zmk-feature-device-info` |
-| Troubleshooting（Watchdog: 再起動原因） | ○ | `zmk-feature-watchdog` |
+| Troubleshooting（Watchdog: 再起動原因） | ◎ | `zmk-feature-watchdog`。**中央側・周辺側とも確認済み**。周辺側は `CLine46_L.conf` 側の設定が要る（下記） |
 | Troubleshooting（KSCAN 診断） | ○ | `zmk-feature-kscan-diagnostics` |
 | バッテリー履歴 | × | `CONFIG_ZMK_BATTERY_HISTORY` はコメントアウト（保存が遅い問題のため上流で無効化中） |
 
 > 残りのタブを確認したら ○ を ◎ に更新する。
+
+### 周辺側（左手側）を Studio から見るために必要な設定
+
+上流の構成は Studio 関連の設定を R.conf にしか置いておらず、周辺側の情報は
+一切取れなかった。左手側を見るには `CLine46_L.conf` に次の 3 つが要る。
+
+```
+CONFIG_ZMK_SPLIT_RELAY_EVENT=y            # relay のキャラクタリスティックを公開する
+CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN=240 # R 側と揃える
+CONFIG_ZMK_WATCHDOG=y                     # 中継された要求に答える相手を用意する
+CONFIG_ZMK_LOW_PRIORITY_THREAD_STACK_SIZE=4096   # 応答の組み立てに要る
+CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE=4096
+```
+
+1 つでも欠けると症状が変わる。relay が無ければタイムアウト、`ZMK_WATCHDOG` が
+無ければやはりタイムアウト、スタックが足りなければ**中央側が落ちて Studio が切断**される。
+同じ理屈で、他の Studio 機能を周辺側にも広げたい場合は該当モジュールを L.conf でも
+有効にする必要がある（Device Info、KSCAN 診断など）。
+
+## OS 自動検出
+
+`cormoran/zmk-feature-os-detection` により、つないでいるホストの OS を判定して
+Connection タブに表示する。判定は **USB の列挙パターン**（`usb_handle_bos` をリンカで
+ラップして GET_DESCRIPTOR の並びを観測）と **BLE の GATT 読み取りパターン**
+（HID Report Map / HID Info / DIS PnP ID / GAP Appearance を読む順序、MTU、接続間隔）の 2 経路。
+
+- **central（右手側）でのみ動作する。** 設定は `CLine46_R.conf` にのみ置く。
+  左手側のキーも右手側を経由してホストへ送られるため、R だけで左右ともに同じ判定が適用される
+- iPad / iPhone を macOS と区別するため `CONFIG_ZMK_OS_DETECTION_BLE_GATT_CLIENT_PROBE=y`
+  を有効にしている（ペアリング後に ANCS/AMS をクライアントとして探索する opt-in 機能）
+
+### 判別の限界（README 記載）
+
+| 組み合わせ | 状況 |
+|---|---|
+| USB での macOS と iOS | **区別できない**（同一の列挙パターン） |
+| BLE での Windows と Linux | 確実には区別できない |
+| USB での Android と Linux | 列挙パターンが同じ |
+
+判定を間違えたときは Studio から **BLE プロファイルごとに手動で上書き**できる
+（上書きはフラッシュに保存され、再接続後も保持される）。
+
+### OS 別レイヤー自動切替について
+
+このモジュールには「検出した OS に応じてレイヤーを自動で有効化する」機能もあるが、
+**現在は無効にしている**（`CONFIG_ZMK_OS_DETECTION_LAYER_AUTO_SWITCH` を書いていない）。
+
+有効にする場合、OS → レイヤー番号の対応は **ビルド時の Kconfig 固定**で、
+Studio からは変更できない。実行時に変えられるのは検出結果の表示と手動上書きだけ。
+
+```
+CONFIG_ZMK_OS_DETECTION_LAYER_AUTO_SWITCH=y
+CONFIG_ZMK_OS_DETECTION_LAYER_MACOS=5      # -1 は無効
+CONFIG_ZMK_OS_DETECTION_LAYER_WINDOWS=6
+```
+
+割り当て先の候補は空きレイヤーの `layer_5`(5) / `layer_6`(6)。
 
 ## うまくいかないとき
 
@@ -84,6 +142,11 @@ DYA Studio はブラウザから ZMK キーボードを設定する Web アプ�
 | 期待したタブが「未対応です」になる | `config/west.yml` に該当モジュールがあるか、`CLine46_R.conf` に `*_STUDIO_RPC=y` があるか |
 | フリーズや勝手に再起動する | スタック不足の可能性。`CLine46_R.conf` の `CONFIG_ZMK_STUDIO_RPC_THREAD_STACK_SIZE` / `CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE` などを確認。Troubleshooting タブの Watchdog に再起動原因が残る |
 | キー位置がずれる | `CLine46.dtsi` の physical layout と `default_transform`、`python3 tools/check_keymap.py` |
+| OS の判定がおかしい | 「判別の限界」を確認したうえで、Connection タブから手動で上書きする。USB は 200ms、BLE は 1000ms のデバウンス後に確定するので、つないだ直後は `Unknown` のことがある |
+| OS 自動検出を入れてから BLE が不安定 | `CONFIG_ZMK_OS_DETECTION_BLE_GATT_CLIENT_PROBE=n` にして切り分ける。それでも駄目なら `CONFIG_ZMK_OS_DETECTION_BLE=n`（`BT_GATT_AUTHORIZATION_CUSTOM` を select しなくなる） |
+| 周辺側タブが `Peripheral did not respond (timed out after 3000ms)` | `CLine46_L.conf` に `CONFIG_ZMK_SPLIT_RELAY_EVENT=y` と `CONFIG_ZMK_WATCHDOG=y` があるか。前者が無いと relay 用のキャラクタリスティックを公開せず、後者が無いと中継されてきた要求に答える相手がいない（`ZMK_WATCHDOG_SPLIT_RELAY` は `if ZMK_WATCHDOG` の中にある）|
+| 周辺側タブを開くと Studio が切断される | 中央側が落ちている。`CLine46_L.conf` の `CONFIG_ZMK_LOW_PRIORITY_THREAD_STACK_SIZE` / `CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE` を R 側と同じ 4096 にする。peripheral も応答を nanopb で組み立てるため、既定のスタックでは足りない |
+| 左右が繋がらない / BLE が不安定（4.1 系） | `CONFIG_BT_CTLR_ASSERT_OVERHEAD_START=n` が左右に入っているか。詳細は `docs/build-and-flash.md` の「3.5」 |
 
 ## 設定ファイルとの関係（重要）
 

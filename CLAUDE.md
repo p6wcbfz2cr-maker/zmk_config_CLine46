@@ -22,7 +22,7 @@ ZMK 設定。ブラウザから設定を動的に変更する **DYA Studio** に
 | `config/west.yml` | ZMK 本体と依存モジュールのバージョン |
 | `boards/shields/CLine46/CLine46.dtsi` | physical layout / matrix transform / kscan（左右共通） |
 | `boards/shields/CLine46/CLine46_R.conf` | **右 = central**。Studio と DYA 機能の設定はここ |
-| `boards/shields/CLine46/CLine46_L.conf` | 左 = peripheral。電源・バッテリー設定のみ |
+| `boards/shields/CLine46/CLine46_L.conf` | 左 = peripheral。電源・バッテリーに加え、split relay と周辺側 Studio 用の設定 |
 | `boards/shields/CLine46/CLine46_R.overlay` | SPI とトラックボール、input processor |
 | `boards/shields/CLine46/Kconfig.defconfig` | シールド既定値 |
 | `build.yaml` | GitHub Actions のビルド対象 |
@@ -35,7 +35,12 @@ ZMK 設定。ブラウザから設定を動的に変更する **DYA Studio** に
 - レイヤー index: `default_layer`=0, `layer_1`=1, `MOUSE`=2, `SCROLL`=3, `layer_4`=4, `layer_5`=5, `layer_6`=6。
   順番を変えると `&mo` / `&lt` の参照と `CLine46_R.overlay` の `scroller { layers = <3>; }` が壊れる。
 - `&studio_unlock` を消さない（消すと DYA Studio から書き換えられなくなる）。
-- DYA Studio 関連の `CONFIG_*_STUDIO_RPC` は **R 側（central）** に置く。
+- DYA Studio 関連の `CONFIG_*_STUDIO_RPC` は **R 側（central）** に置く。ただし
+  周辺側の情報を Studio から見る機能は、モジュール本体（`CONFIG_ZMK_WATCHDOG` など）と
+  `CONFIG_ZMK_SPLIT_RELAY_EVENT`、スタック設定を **L 側にも**置く必要がある。
+  詳細は `docs/dya-studio.md`。
+- `CONFIG_BT_CTLR_ASSERT_OVERHEAD_START=n` を左右から消さない。消すと 4.1 系では
+  無線イベントの遅延で `k_oops()` に落ち、左右が繋がらなくなる（`docs/build-and-flash.md` の 3.5）。
 - `config/west.yml` のモジュールは commit / タグでピンする（`main` 追従にしない）。
 
 ## 編集後に必ず実行する

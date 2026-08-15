@@ -14,13 +14,16 @@
 
 ## 0. ビルド不要の最短ルート
 
-`feature/dya-studio` ブランチには上流がビルドした uf2 が
-`firmware/20260816_zmk4.1_dya-studio/` に同梱されている。**この uf2 を追加したコミット
-（`a19f381`）以降、`config/` `boards/` `build.yaml` は変更されていない**ため、
-現在のブランチの設定内容とそのまま一致する。
+上流がビルドした uf2 が `firmware/20260816_zmk4.1_dya-studio/` に同梱されている。
+これは**上流コミット `a19f381` 時点の `config/` `boards/` `build.yaml` に対応する成果物**。
 
-キーマップや設定を自分で変える前に DYA Studio の動作だけ確認したい場合は、
-ビルドを待たずに「3. 設定リセット」の手順でこの 3 ファイルを書き込めばよい。
+DYA Studio の動作だけ確認したい場合は、ビルドを待たずに「3. 設定リセット」の手順で
+この 3 ファイルを書き込めばよい。
+
+> **設定を変更したら同梱 uf2 とは一致しなくなる。** 現在の内容と一致するかは
+> `git diff a19f381..HEAD -- config boards build.yaml` が空かどうかで確認できる。
+> 空でなければ「1. ビルド」で作り直すこと。
+> （例: OS 自動検出の追加で `config/west.yml` と `CLine46_R.conf` が変わっている）
 
 ## 1. ビルド（GitHub Actions）
 
@@ -64,6 +67,42 @@ AppleDouble メタデータ（`._` で始まるファイル）や Spotlight の�
 スクリプトは `cp -X`（拡張属性を付けない）でコピーし、事前に残留メタデータの掃除と
 Spotlight インデックスの無効化を行うため、この問題を回避できる。
 
+### 左右の取り違え防止
+
+スクリプトは `/Volumes/*` の中で `INFO_UF2.TXT` を持つ**最初のドライブ**に書き込む。
+XIAO は左右で見分けが付かないため、これだけだと反対側をダブルリセットしたときに
+逆のファームが入ってしまう。
+
+そこで書き込む前に、ドライブの `CURRENT.UF2`（＝現在フラッシュに入っている内容）を
+`firmware/` の uf2 と突き合わせて、どちら側かを判定している。
+
+```
+ブートローダーを検出: /Volumes/XIAO-SENSE
+  現在の中身: CLine46_L に 100.0% 一致
+
+中断: 反対側に書き込もうとしています。
+  書き込もうとしたもの: CLine46_R.uf2
+  このドライブの中身  : CLine46_L
+```
+
+設定リセット直後でも判定できる。`settings_reset` は先頭 60KB ほどしか使わず、
+その先には前のファームが残るため、L と R のどちらに近いかで区別が付く。
+
+| 環境変数 | 効果 |
+|---|---|
+| `CLINE46_YES=1` | 取り違えの警告を無視して書き込む |
+| `CLINE46_VOLUME` | 書き込み先のドライブを明示する（動作確認用） |
+| `CLINE46_FIRMWARE_DIR` | uf2 の置き場（既定は `firmware/20260816_zmk4.1_dya-studio`） |
+| `CLINE46_TIMEOUT` | ブートローダー待ちの秒数（既定 60） |
+
+判定だけを単独で行うこともできる。
+
+```bash
+python3 tools/identify_half.py /Volumes/XIAO-SENSE/CURRENT.UF2 \
+    firmware/20260816_zmk4.1_dya-studio/CLine46_L.uf2 \
+    firmware/20260816_zmk4.1_dya-studio/CLine46_R.uf2
+```
+
 ### 手動で行う場合
 
 ```bash
@@ -99,6 +138,39 @@ XIAO の内部フラッシュにはキーマップ変更・BLE ペアリング�
 
 設定リセットをすると **DYA Studio で加えた変更もすべて消える**。必要なら事前に
 DYA Studio の Import/Export からバックアップを取る（`docs/dya-studio.md` 参照）。
+
+## 3.5 4.1 系に上げると左右が繋がらなくなる問題（解決済み）
+
+ZMK v0.3 系から 4.1 系（`main+dya`）に上げた直後、**左右のリンクが張れず、ホストとの BLE も
+不安定**になった。v0.3 系（`firmware/20260501/`）に戻すと正常に動く、という症状。
+
+DYA Studio のウォッチドッグに残っていたカーネル Oops を ELF で解決したところ、原因が判明した。
+
+```
+PC 0x0002b232 -> lll_central.c:250  LL_ASSERT_OVERHEAD  (central 役 = 左手側とのリンク)
+PC 0x0002a514 -> lll_adv.c:1041     LL_ASSERT_OVERHEAD  (ホストへのアドバタイズ)
+```
+
+`lll_preempt_calc()` が「無線イベントの準備が予定に間に合わなかった」と判定したときのアサートで、
+`CONFIG_BT_CTLR_ASSERT_OVERHEAD_START`（**Zephyr の既定は `y`**）が `k_oops()` に落としている。
+4.1 系はモジュールが増えて CPU 負荷が重く、リンクを張ろうとするたびに落ちて再起動していた。
+
+対処は左右とも次を入れること（`CLine46_R.conf` / `CLine46_L.conf` に記載済み）。
+
+```
+CONFIG_BT_CTLR_ASSERT_OVERHEAD_START=n
+```
+
+Kconfig の help にあるとおり、無効にすると遅れた radio event を捨てて継続するようになる。
+副作用は「スキップが連続すると supervision timeout で切断されうる」こと。
+
+あわせて `CONFIG_ZMK_SPLIT_RELAY_EVENT` を **L 側にも**入れた。これは
+"Relay Events from Peripheral to Central" という左右両方の機能だが、上流の構成では
+R にしか無く、peripheral が relay 用のキャラクタリスティックを公開していなかった。
+DYA Studio の「周辺側」タブが `Peripheral did not respond` になる原因はこれ。
+
+> クラッシュ位置の解決には `.github/workflows/build-elf.yml`（ELF を出す手動ビルド）と
+> `tools/resolve_crash.py`（PC/LR → 関数名・ソース行）を使う。
 
 ## 4. 既存ファームウェアへの巻き戻し
 
