@@ -39,13 +39,16 @@ jobs:
       image: zmkfirmware/zmk-build-arm:stable
     env:
       base_dir: /tmp/zmk-config
-      build_dir: /tmp/zmk-build
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Prepare west workspace
         run: |
+          # ビルドディレクトリのパス長が変わると、埋め込まれる文字列の長さが変わって
+          # コード配置がずれ、ELF のアドレスが実機のバイナリと一致しなくなる。
+          # 本家ワークフローと同じ mktemp -d（/tmp/tmp.XXXXXXXXXX）にする。
+          echo "build_dir=$(mktemp -d)" >> "$GITHUB_ENV"
           mkdir -p "${base_dir}/config"
           cp -R config/* "${base_dir}/config/"
 
