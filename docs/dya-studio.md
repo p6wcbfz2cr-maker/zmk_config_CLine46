@@ -126,6 +126,8 @@ CONFIG_ZMK_OS_DETECTION_LAYER_WINDOWS=6
 | キー位置がずれる | `CLine46.dtsi` の physical layout と `default_transform`、`python3 tools/check_keymap.py` |
 | OS の判定がおかしい | 「判別の限界」を確認したうえで、Connection タブから手動で上書きする。USB は 200ms、BLE は 1000ms のデバウンス後に確定するので、つないだ直後は `Unknown` のことがある |
 | OS 自動検出を入れてから BLE が不安定 | `CONFIG_ZMK_OS_DETECTION_BLE_GATT_CLIENT_PROBE=n` にして切り分ける。それでも駄目なら `CONFIG_ZMK_OS_DETECTION_BLE=n`（`BT_GATT_AUTHORIZATION_CUSTOM` を select しなくなる） |
+| 周辺側タブが `Peripheral did not respond (timed out after 3000ms)` | `CLine46_L.conf` に `CONFIG_ZMK_SPLIT_RELAY_EVENT=y` があるか。これが無いと peripheral が relay 用のキャラクタリスティックを公開しない。`DATA_LEN` も R 側と揃える |
+| 左右が繋がらない / BLE が不安定（4.1 系） | `CONFIG_BT_CTLR_ASSERT_OVERHEAD_START=n` が左右に入っているか。詳細は `docs/build-and-flash.md` の「3.5」 |
 
 ## 設定ファイルとの関係（重要）
 

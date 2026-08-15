@@ -139,6 +139,39 @@ XIAO の内部フラッシュにはキーマップ変更・BLE ペアリング�
 設定リセットをすると **DYA Studio で加えた変更もすべて消える**。必要なら事前に
 DYA Studio の Import/Export からバックアップを取る（`docs/dya-studio.md` 参照）。
 
+## 3.5 4.1 系に上げると左右が繋がらなくなる問題（解決済み）
+
+ZMK v0.3 系から 4.1 系（`main+dya`）に上げた直後、**左右のリンクが張れず、ホストとの BLE も
+不安定**になった。v0.3 系（`firmware/20260501/`）に戻すと正常に動く、という症状。
+
+DYA Studio のウォッチドッグに残っていたカーネル Oops を ELF で解決したところ、原因が判明した。
+
+```
+PC 0x0002b232 -> lll_central.c:250  LL_ASSERT_OVERHEAD  (central 役 = 左手側とのリンク)
+PC 0x0002a514 -> lll_adv.c:1041     LL_ASSERT_OVERHEAD  (ホストへのアドバタイズ)
+```
+
+`lll_preempt_calc()` が「無線イベントの準備が予定に間に合わなかった」と判定したときのアサートで、
+`CONFIG_BT_CTLR_ASSERT_OVERHEAD_START`（**Zephyr の既定は `y`**）が `k_oops()` に落としている。
+4.1 系はモジュールが増えて CPU 負荷が重く、リンクを張ろうとするたびに落ちて再起動していた。
+
+対処は左右とも次を入れること（`CLine46_R.conf` / `CLine46_L.conf` に記載済み）。
+
+```
+CONFIG_BT_CTLR_ASSERT_OVERHEAD_START=n
+```
+
+Kconfig の help にあるとおり、無効にすると遅れた radio event を捨てて継続するようになる。
+副作用は「スキップが連続すると supervision timeout で切断されうる」こと。
+
+あわせて `CONFIG_ZMK_SPLIT_RELAY_EVENT` を **L 側にも**入れた。これは
+"Relay Events from Peripheral to Central" という左右両方の機能だが、上流の構成では
+R にしか無く、peripheral が relay 用のキャラクタリスティックを公開していなかった。
+DYA Studio の「周辺側」タブが `Peripheral did not respond` になる原因はこれ。
+
+> クラッシュ位置の解決には `.github/workflows/build-elf.yml`（ELF を出す手動ビルド）と
+> `tools/resolve_crash.py`（PC/LR → 関数名・ソース行）を使う。
+
 ## 4. 既存ファームウェアへの巻き戻し
 
 `firmware/` にコミット済みのビルド成果物がある。
