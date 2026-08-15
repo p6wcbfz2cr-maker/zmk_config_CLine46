@@ -70,11 +70,29 @@ DYA Studio はブラウザから ZMK キーボードを設定する Web アプ�
 | Settings（idle / sleep） | ○ | `zmk-module-settings-rpc` |
 | Settings（詳細設定） | ○ | `CONFIG_ZMK_CUSTOM_SETTINGS=y`（`runtime-macro` / `runtime-combo` の `import: true` 経由で取り込まれる） |
 | Troubleshooting（Device Info） | ◎ | `zmk-feature-device-info` |
-| Troubleshooting（Watchdog: 再起動原因） | ○ | `zmk-feature-watchdog` |
+| Troubleshooting（Watchdog: 再起動原因） | ◎ | `zmk-feature-watchdog`。**中央側・周辺側とも確認済み**。周辺側は `CLine46_L.conf` 側の設定が要る（下記） |
 | Troubleshooting（KSCAN 診断） | ○ | `zmk-feature-kscan-diagnostics` |
 | バッテリー履歴 | × | `CONFIG_ZMK_BATTERY_HISTORY` はコメントアウト（保存が遅い問題のため上流で無効化中） |
 
 > 残りのタブを確認したら ○ を ◎ に更新する。
+
+### 周辺側（左手側）を Studio から見るために必要な設定
+
+上流の構成は Studio 関連の設定を R.conf にしか置いておらず、周辺側の情報は
+一切取れなかった。左手側を見るには `CLine46_L.conf` に次の 3 つが要る。
+
+```
+CONFIG_ZMK_SPLIT_RELAY_EVENT=y            # relay のキャラクタリスティックを公開する
+CONFIG_ZMK_SPLIT_RELAY_EVENT_DATA_LEN=240 # R 側と揃える
+CONFIG_ZMK_WATCHDOG=y                     # 中継された要求に答える相手を用意する
+CONFIG_ZMK_LOW_PRIORITY_THREAD_STACK_SIZE=4096   # 応答の組み立てに要る
+CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE=4096
+```
+
+1 つでも欠けると症状が変わる。relay が無ければタイムアウト、`ZMK_WATCHDOG` が
+無ければやはりタイムアウト、スタックが足りなければ**中央側が落ちて Studio が切断**される。
+同じ理屈で、他の Studio 機能を周辺側にも広げたい場合は該当モジュールを L.conf でも
+有効にする必要がある（Device Info、KSCAN 診断など）。
 
 ## OS 自動検出
 
