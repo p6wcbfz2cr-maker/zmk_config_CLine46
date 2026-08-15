@@ -4,8 +4,12 @@
 # アーティファクトに入れないため、DYA Studio の「ELF をアップロード」で
 # ウォッチドッグの PC/LR をシンボル解決したいときに使う。
 #
-# 手動実行専用（push では走らない）。
-#   gh workflow run build-elf.yml -R p6wcbfz2cr-maker/zmk_config_CLine46 --ref <ブランチ>
+# 起動方法:
+#   - main にマージ済みなら手動実行できる
+#       gh workflow run build-elf.yml -R p6wcbfz2cr-maker/zmk_config_CLine46 --ref <ブランチ>
+#   - まだ main に無い間は workflow_dispatch が使えない（GitHub の仕様で、
+#     既定ブランチに存在しないワークフローは dispatch できない）。
+#     そのため、このファイル自体を編集して push したときにも走るようにしてある。
 #
 # 出力した uf2 が通常ビルドのものと SHA256 一致するかを確認すること。
 # 一致していれば、その ELF は実機に載っているバイナリと完全に同一。
@@ -14,6 +18,9 @@ name: Build ELF (debug)
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build-elf.yml"
 
 jobs:
   build-elf:
