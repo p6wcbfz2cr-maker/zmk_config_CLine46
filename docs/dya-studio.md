@@ -65,7 +65,8 @@ DYA Studio はブラウザから ZMK キーボードを設定する Web アプ�
 | Trackball（PMW3610 の省電力など詳細設定） | △ | ドライバが `badjeff/zmk-pmw3610-driver`。cormoran の `zmk-driver-pmw3610-with-custom-studio-rpc` ではないため出ない可能性が高い |
 | Connection（BLE プロファイル） | ○ | `zmk-module-ble-management` |
 | Connection（接続先別デフォルトレイヤー） | ○ | `zmk-feature-default-layer` |
-| Connection（OS 自動検出と OS 別レイヤー） | × | `zmk-feature-os-detection` が west.yml に無い |
+| Connection（OS 自動検出） | ○ | `zmk-feature-os-detection`（`3052679f`）+ `CONFIG_ZMK_OS_DETECTION_*` |
+| Connection（OS 別レイヤー自動切替） | × | `CONFIG_ZMK_OS_DETECTION_LAYER_AUTO_SWITCH` を有効にしていない |
 | Settings（idle / sleep） | ○ | `zmk-module-settings-rpc` |
 | Settings（詳細設定） | ○ | `CONFIG_ZMK_CUSTOM_SETTINGS=y`（`runtime-macro` / `runtime-combo` の `import: true` 経由で取り込まれる） |
 | Troubleshooting（Device Info） | ◎ | `zmk-feature-device-info` |
@@ -74,6 +75,45 @@ DYA Studio はブラウザから ZMK キーボードを設定する Web アプ�
 | バッテリー履歴 | × | `CONFIG_ZMK_BATTERY_HISTORY` はコメントアウト（保存が遅い問題のため上流で無効化中） |
 
 > 残りのタブを確認したら ○ を ◎ に更新する。
+
+## OS 自動検出
+
+`cormoran/zmk-feature-os-detection` により、つないでいるホストの OS を判定して
+Connection タブに表示する。判定は **USB の列挙パターン**（`usb_handle_bos` をリンカで
+ラップして GET_DESCRIPTOR の並びを観測）と **BLE の GATT 読み取りパターン**
+（HID Report Map / HID Info / DIS PnP ID / GAP Appearance を読む順序、MTU、接続間隔）の 2 経路。
+
+- **central（右手側）でのみ動作する。** 設定は `CLine46_R.conf` にのみ置く。
+  左手側のキーも右手側を経由してホストへ送られるため、R だけで左右ともに同じ判定が適用される
+- iPad / iPhone を macOS と区別するため `CONFIG_ZMK_OS_DETECTION_BLE_GATT_CLIENT_PROBE=y`
+  を有効にしている（ペアリング後に ANCS/AMS をクライアントとして探索する opt-in 機能）
+
+### 判別の限界（README 記載）
+
+| 組み合わせ | 状況 |
+|---|---|
+| USB での macOS と iOS | **区別できない**（同一の列挙パターン） |
+| BLE での Windows と Linux | 確実には区別できない |
+| USB での Android と Linux | 列挙パターンが同じ |
+
+判定を間違えたときは Studio から **BLE プロファイルごとに手動で上書き**できる
+（上書きはフラッシュに保存され、再接続後も保持される）。
+
+### OS 別レイヤー自動切替について
+
+このモジュールには「検出した OS に応じてレイヤーを自動で有効化する」機能もあるが、
+**現在は無効にしている**（`CONFIG_ZMK_OS_DETECTION_LAYER_AUTO_SWITCH` を書いていない）。
+
+有効にする場合、OS → レイヤー番号の対応は **ビルド時の Kconfig 固定**で、
+Studio からは変更できない。実行時に変えられるのは検出結果の表示と手動上書きだけ。
+
+```
+CONFIG_ZMK_OS_DETECTION_LAYER_AUTO_SWITCH=y
+CONFIG_ZMK_OS_DETECTION_LAYER_MACOS=5      # -1 は無効
+CONFIG_ZMK_OS_DETECTION_LAYER_WINDOWS=6
+```
+
+割り当て先の候補は空きレイヤーの `layer_5`(5) / `layer_6`(6)。
 
 ## うまくいかないとき
 
@@ -84,6 +124,8 @@ DYA Studio はブラウザから ZMK キーボードを設定する Web アプ�
 | 期待したタブが「未対応です」になる | `config/west.yml` に該当モジュールがあるか、`CLine46_R.conf` に `*_STUDIO_RPC=y` があるか |
 | フリーズや勝手に再起動する | スタック不足の可能性。`CLine46_R.conf` の `CONFIG_ZMK_STUDIO_RPC_THREAD_STACK_SIZE` / `CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE` などを確認。Troubleshooting タブの Watchdog に再起動原因が残る |
 | キー位置がずれる | `CLine46.dtsi` の physical layout と `default_transform`、`python3 tools/check_keymap.py` |
+| OS の判定がおかしい | 「判別の限界」を確認したうえで、Connection タブから手動で上書きする。USB は 200ms、BLE は 1000ms のデバウンス後に確定するので、つないだ直後は `Unknown` のことがある |
+| OS 自動検出を入れてから BLE が不安定 | `CONFIG_ZMK_OS_DETECTION_BLE_GATT_CLIENT_PROBE=n` にして切り分ける。それでも駄目なら `CONFIG_ZMK_OS_DETECTION_BLE=n`（`BT_GATT_AUTHORIZATION_CUSTOM` を select しなくなる） |
 
 ## 設定ファイルとの関係（重要）
 
