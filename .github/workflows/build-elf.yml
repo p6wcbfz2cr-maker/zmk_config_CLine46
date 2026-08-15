@@ -4,6 +4,12 @@
 # アーティファクトに入れないため、DYA Studio の「ELF をアップロード」で
 # ウォッチドッグの PC/LR をシンボル解決したいときに使う。
 #
+# 手順は再利用ワークフロー（build-user-config.yml@v0.3）の実行ログから写したもの。
+# ポイントは 2 つ:
+#   - west ワークスペースはリポジトリの外（/tmp/zmk-config）に作り、config/ をコピーする
+#   - シールドはリポジトリ直下の boards/ にあるので -DZMK_EXTRA_MODULES でリポジトリを渡す
+#     （これが無いと "Invalid SHIELD" で失敗する）
+#
 # 起動方法:
 #   - main にマージ済みなら手動実行できる
 #       gh workflow run build-elf.yml -R p6wcbfz2cr-maker/zmk_config_CLine46 --ref <ブランチ>
@@ -27,33 +33,45 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: zmkfirmware/zmk-build-arm:stable
+    env:
+      base_dir: /tmp/zmk-config
+      build_dir: /tmp/zmk-build
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Prepare west workspace
+        run: |
+          mkdir -p "${base_dir}/config"
+          cp -R config/* "${base_dir}/config/"
+
       - name: West Init
-        run: west init -l config
+        run: west init -l "${base_dir}/config"
 
       - name: West Update
+        working-directory: /tmp/zmk-config
         run: west update --fetch-opt=--filter=tree:0
 
       - name: West Zephyr export
+        working-directory: /tmp/zmk-config
         run: west zephyr-export
 
       - name: West Build
+        working-directory: /tmp/zmk-config
         run: |
-          west build -s zmk/app -d build -b "xiao_ble//zmk" \
-            -S studio-rpc-usb-uart \
+          west build -s zmk/app -d "${build_dir}" -b "xiao_ble//zmk" \
+            -S "studio-rpc-usb-uart" \
             -- \
-            -DZMK_CONFIG="${GITHUB_WORKSPACE}/config" \
-            -DSHIELD="CLine46_R rgbled_adapter"
+            -DZMK_CONFIG="${base_dir}/config" \
+            -DSHIELD="CLine46_R rgbled_adapter" \
+            -DZMK_EXTRA_MODULES="${GITHUB_WORKSPACE}"
 
       - name: Collect artifacts
         run: |
           mkdir -p artifacts
-          cp build/zephyr/zmk.elf artifacts/CLine46_R.elf
-          cp build/zephyr/zmk.uf2 artifacts/CLine46_R.uf2
-          cp build/zephyr/zmk.map artifacts/CLine46_R.map
+          cp "${build_dir}/zephyr/zmk.elf" artifacts/CLine46_R.elf
+          cp "${build_dir}/zephyr/zmk.uf2" artifacts/CLine46_R.uf2
+          cp "${build_dir}/zephyr/zmk.map" artifacts/CLine46_R.map
           echo "--- sha256 ---"
           sha256sum artifacts/*
 
