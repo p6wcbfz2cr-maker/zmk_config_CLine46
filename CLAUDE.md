@@ -47,6 +47,15 @@ python3 tools/check_keymap.py
 キー数・レイヤー参照・コンボ位置・`&studio_unlock` の有無・physical layout と
 matrix transform の整合を検証する（ZMK ビルド環境は不要）。
 
+## ファームウェアの書き込み
+
+```bash
+./tools/flash.sh reset|left|right
+```
+
+Finder のドラッグ&ドロップは macOS のメタデータが原因でエラー -36 / -50 になることが
+あるため、このスクリプト（`cp -X`）を使う。詳細は `docs/build-and-flash.md`。
+
 ## DYA Studio
 
 - 右手側を USB 接続 → https://studio.dya.cormoran.works/ を Chrome/Edge で開く
