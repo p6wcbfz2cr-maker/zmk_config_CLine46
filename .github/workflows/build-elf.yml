@@ -1,0 +1,57 @@
+# デバッグ用: 右手側（central）を ELF 付きでビルドする。
+#
+# 通常の build.yml が呼ぶ zmkfirmware/zmk の再利用ワークフローは zmk.uf2 しか
+# アーティファクトに入れないため、DYA Studio の「ELF をアップロード」で
+# ウォッチドッグの PC/LR をシンボル解決したいときに使う。
+#
+# 手動実行専用（push では走らない）。
+#   gh workflow run build-elf.yml -R p6wcbfz2cr-maker/zmk_config_CLine46 --ref <ブランチ>
+#
+# 出力した uf2 が通常ビルドのものと SHA256 一致するかを確認すること。
+# 一致していれば、その ELF は実機に載っているバイナリと完全に同一。
+
+name: Build ELF (debug)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-elf:
+    runs-on: ubuntu-latest
+    container:
+      image: zmkfirmware/zmk-build-arm:stable
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: West Init
+        run: west init -l config
+
+      - name: West Update
+        run: west update --fetch-opt=--filter=tree:0
+
+      - name: West Zephyr export
+        run: west zephyr-export
+
+      - name: West Build
+        run: |
+          west build -s zmk/app -d build -b "xiao_ble//zmk" \
+            -S studio-rpc-usb-uart \
+            -- \
+            -DZMK_CONFIG="${GITHUB_WORKSPACE}/config" \
+            -DSHIELD="CLine46_R rgbled_adapter"
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p artifacts
+          cp build/zephyr/zmk.elf artifacts/CLine46_R.elf
+          cp build/zephyr/zmk.uf2 artifacts/CLine46_R.uf2
+          cp build/zephyr/zmk.map artifacts/CLine46_R.map
+          echo "--- sha256 ---"
+          sha256sum artifacts/*
+
+      - name: Archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: CLine46_R-elf
+          path: artifacts
