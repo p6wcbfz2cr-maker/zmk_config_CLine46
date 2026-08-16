@@ -140,6 +140,41 @@ CONFIG_ZMK_OS_DETECTION_LAYER_WINDOWS=6
 
 割り当て先の候補は空きレイヤーの `layer_5`(5) / `layer_6`(6)。
 
+## 既知の問題: 一時レイヤー（temp-layer）の対象レイヤーがズレる
+
+`トラックボール設定 → mouse プロセッサー → 一時レイヤー` の「対象レイヤー」で選んだ
+レイヤーと、実際にトラックボール使用時に有効化されるレイヤーが食い違うことがある
+（2026-08-16、実機で確認）。
+
+**原因（`zmk-module-runtime-input-processor` 側のバグと推定）**:
+DYA Studio 本体（[cormoran/dya-studio](https://github.com/cormoran/dya-studio) の
+`src/pages/TrackballPage.tsx` / `src/hooks/useKeymap.ts`）は、レイヤーの
+**並び替えても変わらない安定した `id`** を対象レイヤーとして送信している。
+devicetree の `temp-layer` プロパティの説明も「Default target layer **ID**」と明記して
+おり、Studio 側の実装は仕様通り。
+
+一方、[cormoran/zmk-module-runtime-input-processor](https://github.com/cormoran/zmk-module-runtime-input-processor)
+の `src/pointing/input_processor_runtime.c` は、Studio から受け取ったこの値をそのまま
+`zmk_keymap_layer_activate()` や `zmk_keymap_get_layer_binding_at_idx()`
+（関数名の `_at_idx` が示す通り、本来は「現在の表示順インデックス」を期待する）に渡して
+おり、ID→インデックスの変換をしていない。レイヤーを一度も並び替えていなければ ID と
+インデックスが一致するため気づきにくいが、Studio でレイヤーを並び替えた後は対象レイヤーが
+別のレイヤーにすり替わる。
+
+**関連する別バグ**: 対象レイヤーを変更しても、既に有効化されているレイヤーは無効化されない
+（`zmk_input_processor_runtime_set_temp_layer_layer()` 等が `temp_layer_layer_active` を
+見ずに設定値を上書きするだけのため）。誤って `scroller` が紐づくレイヤー（本リポジトリでは
+レイヤー3 = `scroll_BLE`）を対象にすると、トラックボールがスクロールモードに固定される
+無限ループに陥る。**再起動しても直らないことがあり**、その場合は `mouse` プロセッサーを
+一度リセット（工場出荷時のデフォルトに戻す）すると復旧する。
+
+**現状の回避策**: Studio の「ストリーム」表示（キーマップタブ）で、実際にどのレイヤーが
+光るかを目視確認し、意図した割り当てをそのレイヤーに合わせる。本リポジトリでは、クリック
+キー割り当てを意図していた `レイヤー5` タブから、実際に光る `base_win` タブへ移設して運用中。
+
+**Issue報告**: 未報告（2026-08-16時点）。修正は `zmk-module-runtime-input-processor` 側の
+対応が必要で、本リポジトリの `config/` からは直せない。
+
 ## うまくいかないとき
 
 | 症状 | 確認すること |
