@@ -15,8 +15,8 @@ DYA Studio はブラウザから ZMK キーボードを設定する Web アプ�
    - 左手側では接続できない。USB Serial は右手側にしか出ていない（`build.yaml` の
      `snippet: studio-rpc-usb-uart` が右手側だけに付いている）
 3. 「USBで接続」を選び、表示されたシリアルポートを許可する
-4. **Studio Unlock**: `MO(3)`（右手最下段、`.` の右隣）を押しながら、
-   **右親指の ENTER 位置**を押す（キー位置 42 の `&studio_unlock`）
+4. **Studio Unlock**: `&lt 6 SEMICOLON`（右手row2、`L` の右隣、キー位置22）を押しながら、
+   **右親指の ENTER 位置**を押す（キー位置 42 の `&studio_unlock`、レイヤー`6_ble`内）
    - Unlock しないと閲覧はできても書き換えができない
 5. 変更後は画面の保存操作でキーボード本体のフラッシュに保存される
 
@@ -29,7 +29,7 @@ Studio の `キーマップ` タブにあるレイヤーの並び替え機能（
 （`config/CLine46.keymap` 側でレイヤー順を変えてはいけない）と同じ理由で、Studio上の
 並び替えでも壊れる。
 
-- `CLine46_R.overlay` の `scroller { layers = <3>; }` は「今インデックス3にあるレイヤー」に
+- `CLine46_R.overlay` の `scroller { layers = <6>; }` は「今インデックス6にあるレイヤー」に
   無条件で紐づく静的な設定。並び替えるとスクロールが別のレイヤーで発動する（または発動しなく
   なる）
 - トラックボールの「一時レイヤー」機能は、Studioが送るレイヤーIDとファームウェアが期待する
@@ -79,12 +79,12 @@ Studio の `キーマップ` タブにあるレイヤーの並び替え機能（
 | Macro | ◎ | `zmk-feature-runtime-macro` |
 | Combo | ◎ | `zmk-feature-runtime-combo` |
 | Trackball（感度・回転・スクロール・一時レイヤー） | ○ | `zmk-module-runtime-input-processor` |
-| Trackball のスクロール専用チェーン（レイヤー3 = `SCROLL` 中の速度・XY反転） | ○ | `CLine46_R.overlay` の `scroller` が `scroll_runtime_input_processor` を使用 |
+| Trackball のスクロール専用チェーン（レイヤー6 = `6_ble` 中の速度・XY反転） | ○ | `CLine46_R.overlay` の `scroller` が `scroll_runtime_input_processor` を使用 |
 | Trackball（PMW3610 の省電力など詳細設定） | △ | ドライバが `badjeff/zmk-pmw3610-driver`。cormoran の `zmk-driver-pmw3610-with-custom-studio-rpc` ではないため出ない可能性が高い |
 | Connection（BLE プロファイル） | ○ | `zmk-module-ble-management` |
 | Connection（接続先別デフォルトレイヤー） | ○ | `zmk-feature-default-layer` |
 | Connection（OS 自動検出） | ◎ | `zmk-feature-os-detection`（`3052679f`）+ `CONFIG_ZMK_OS_DETECTION_*` |
-| Connection（OS 別レイヤー自動切替） | × | `CONFIG_ZMK_OS_DETECTION_LAYER_AUTO_SWITCH` を有効にしていない |
+| Connection（OS 別レイヤー自動切替） | ○ | `CONFIG_ZMK_OS_DETECTION_LAYER_AUTO_SWITCH=y`（`0_base_mac`/`1_base_win`を自動切替、実機未確認） |
 | Settings（idle / sleep） | ○ | `zmk-module-settings-rpc` |
 | Settings（詳細設定） | ○ | `CONFIG_ZMK_CUSTOM_SETTINGS=y`（`runtime-macro` / `runtime-combo` の `import: true` 経由で取り込まれる） |
 | Troubleshooting（Device Info） | ◎ | `zmk-feature-device-info` |
@@ -96,7 +96,7 @@ Studio の `キーマップ` タブにあるレイヤーの並び替え機能（
 
 `zmk-module-runtime-input-processor` を使うノードは Studio の Trackball 設定に
 processor 単位で個別に表示される。CLine46 では現在 `mouse`（通常のポインター移動、
-`CLine46_R.overlay` トップレベルの `input-processors`）と `scroll`（レイヤー3 = `SCROLL`
+`CLine46_R.overlay` トップレベルの `input-processors`）と `scroll`（レイヤー6 = `6_ble`
 専用の `scroller` チェーン）の 2 つが並んで表示され、それぞれ独立に速度
 （`scale-multiplier`/`scale-divisor`）・向き反転（X/Y invert）などを変更できる。
 
@@ -143,19 +143,25 @@ Connection タブに表示する。判定は **USB の列挙パターン**（`us
 
 ### OS 別レイヤー自動切替について
 
-このモジュールには「検出した OS に応じてレイヤーを自動で有効化する」機能もあるが、
-**現在は無効にしている**（`CONFIG_ZMK_OS_DETECTION_LAYER_AUTO_SWITCH` を書いていない）。
+このモジュールには「検出した OS に応じてレイヤーを自動で有効化する」機能があり、**有効化済み**
+（`CLine46_R.conf`）。
 
-有効にする場合、OS → レイヤー番号の対応は **ビルド時の Kconfig 固定**で、
-Studio からは変更できない。実行時に変えられるのは検出結果の表示と手動上書きだけ。
+OS → レイヤー番号の対応は **ビルド時の Kconfig 固定**で、Studio からは変更できない。
+実行時に変えられるのは検出結果の表示と手動上書きだけ。
 
 ```
 CONFIG_ZMK_OS_DETECTION_LAYER_AUTO_SWITCH=y
-CONFIG_ZMK_OS_DETECTION_LAYER_MACOS=5      # -1 は無効
-CONFIG_ZMK_OS_DETECTION_LAYER_WINDOWS=6
+CONFIG_ZMK_OS_DETECTION_LAYER_WINDOWS=1
 ```
 
-割り当て先の候補は空きレイヤーの `layer_5`(5) / `layer_6`(6)。
+ZMK では**レイヤー0は常時有効な土台レイヤーで無効化できない**ため、`LAYER_MACOS` /
+`LAYER_IOS` は指定していない（既定値 `-1` のまま）。実際の構成は対称な2レイヤーではなく:
+
+- `0_base_mac`（index 0）: 常時有効な土台レイヤー。Mac向けの内容を直接書く
+- `1_base_win`（index 1）: Windows検出時だけ `0_base_mac` の上にオーバーレイとして自動有効化される
+  差分レイヤー。現状すべて `&trans`（差分は未設定）
+
+macOS / iOS 検出時は追加のレイヤー活性化が不要なため、`0_base_mac` がそのまま使われる。
 
 ## 既知の問題: 一時レイヤー（temp-layer）の対象レイヤーがズレる
 
@@ -181,7 +187,7 @@ devicetree の `temp-layer` プロパティの説明も「Default target layer *
 **関連する別バグ**: 対象レイヤーを変更しても、既に有効化されているレイヤーは無効化されない
 （`zmk_input_processor_runtime_set_temp_layer_layer()` 等が `temp_layer_layer_active` を
 見ずに設定値を上書きするだけのため）。誤って `scroller` が紐づくレイヤー（本リポジトリでは
-レイヤー3 = `scroll_BLE`）を対象にすると、トラックボールがスクロールモードに固定される
+レイヤー6 = `6_ble`）を対象にすると、トラックボールがスクロールモードに固定される
 無限ループに陥る。**再起動しても直らないことがあり**、その場合は `mouse` プロセッサーを
 一度リセット（工場出荷時のデフォルトに戻す）すると復旧する。
 
@@ -204,7 +210,7 @@ devicetree の `temp-layer` プロパティの説明も「Default target layer *
 | 症状 | 確認すること |
 |---|---|
 | そもそも接続できない | 右手側を USB で繋いでいるか / `build.yaml` の `snippet: studio-rpc-usb-uart` / `CONFIG_ZMK_STUDIO=y` / Chrome か Edge か |
-| Keymap は見えるが変更できない | Studio Unlock したか（`MO(3)` + 右親指 ENTER 位置） |
+| Keymap は見えるが変更できない | Studio Unlock したか（`&lt 6 SEMICOLON` + 右親指 ENTER 位置） |
 | 期待したタブが「未対応です」になる | `config/west.yml` に該当モジュールがあるか、`CLine46_R.conf` に `*_STUDIO_RPC=y` があるか |
 | フリーズや勝手に再起動する | スタック不足の可能性。`CLine46_R.conf` の `CONFIG_ZMK_STUDIO_RPC_THREAD_STACK_SIZE` / `CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE` などを確認。Troubleshooting タブの Watchdog に再起動原因が残る |
 | キー位置がずれる | `CLine46.dtsi` の physical layout と `default_transform`、`python3 tools/check_keymap.py` |

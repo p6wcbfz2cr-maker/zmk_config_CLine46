@@ -32,8 +32,14 @@ ZMK 設定。ブラウザから設定を動的に変更する **DYA Studio** に
 ## 守るべき不変条件
 
 - **全レイヤーが 46 キー**（12 / 12 / 12 / 10）。1 つでも欠けるとビルドは通っても配列がずれる。
-- レイヤー index: `default_layer`=0, `layer_1`=1, `MOUSE`=2, `SCROLL`=3, `layer_4`=4, `layer_5`=5, `layer_6`=6。
-  順番を変えると `&mo` / `&lt` の参照と `CLine46_R.overlay` の `scroller { layers = <3>; }` が壊れる。
+- レイヤー index: `0_base_mac`=0, `1_base_win`=1, `2_number`=2, `3_function`=3, `4_func_win`=4,
+  `5_mouse`=5, `6_ble`=6。順番を変えると `&lt` の参照と `CLine46_R.overlay` の
+  `scroller { layers = <6>; }` が壊れる。
+- `0_base_mac`（index 0）は ZMK の仕様上無効化できない常時有効な土台レイヤー。`1_base_win`
+  （index 1）は Windows 検出時だけ自動でオーバーレイ有効化される差分レイヤーで、
+  `CLine46_R.conf` の `CONFIG_ZMK_OS_DETECTION_LAYER_AUTO_SWITCH` /
+  `CONFIG_ZMK_OS_DETECTION_LAYER_WINDOWS=1` と対応している（`zmk-feature-os-detection`）。
+  `4_func_win`・`5_mouse` は到達手段のない予約レイヤー。
 - `&studio_unlock` を消さない（消すと DYA Studio から書き換えられなくなる）。
 - DYA Studio 関連の `CONFIG_*_STUDIO_RPC` は **R 側（central）** に置く。ただし
   周辺側の情報を Studio から見る機能は、モジュール本体（`CONFIG_ZMK_WATCHDOG` など）と
@@ -64,7 +70,7 @@ Finder のドラッグ&ドロップは macOS のメタデータが原因でエ�
 ## DYA Studio
 
 - 右手側を USB 接続 → https://studio.dya.cormoran.works/ を Chrome/Edge で開く
-- **Studio Unlock**: `MO(3)`（右手最下段、`.` の右隣）+ 右親指の ENTER 位置
+- **Studio Unlock**: `&lt 6 SEMICOLON`（右手 row2、`L` の右隣）長押し + 右親指の ENTER 位置
 - **Studio での変更はキーボード本体に保存され、`config/CLine46.keymap` は書き換わらない。**
   恒久化したい変更はファイルにも反映してコミットする。ファーム更新前は Import/Export から
   Keyboard Abyss にバックアップする。

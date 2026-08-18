@@ -72,7 +72,7 @@
 
 
     scroller {
-        layers = <3>;
+        layers = <6>;
         input-processors =
             <&zip_xy_to_scroll_mapper>,          //スクロールモードに変換
             <&scroll_runtime_input_processor>;   //速度・XY反転をDYA Studioから変更可能にする

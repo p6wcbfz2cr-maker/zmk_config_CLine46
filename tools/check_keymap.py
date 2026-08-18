@@ -62,7 +62,7 @@ def child_blocks(body: str) -> list[tuple[str, str]]:
     """直下の子ノードを (名前, 中身) のリストで返す。"""
     result: list[tuple[str, str]] = []
     index = 0
-    pattern = re.compile(r"(?:([A-Za-z_][\w-]*)\s*:\s*)?([A-Za-z_][\w-]*)\s*\{")
+    pattern = re.compile(r"(?:([A-Za-z_][\w-]*)\s*:\s*)?([A-Za-z0-9_][\w-]*)\s*\{")
     while index < len(body):
         match = pattern.search(body, index)
         if not match:

@@ -20,60 +20,96 @@
 
 ## レイヤー一覧
 
-| index | 名前 | 役割 | 入り方 |
+| index | ノード名 (display-name) | 役割 | 入り方 |
 |---|---|---|---|
-| 0 | `default_layer` | 通常入力 | ― |
-| 1 | `layer_1` | 数字・記号 | 左親指 `LT1/SPACE` を長押し |
-| 2 | `MOUSE` | F キー・矢印・コピペ・マウスボタン | 左親指 `LT2/無変換` を長押し |
-| 3 | `SCROLL` | Bluetooth 設定 + Studio Unlock + トラックボールのスクロール化 | 右手最下段の `MO(3)` を長押し |
-| 4 | `layer_4` | Bluetooth 設定（`SCROLL` とほぼ同じ内容、到達手段なし） | ― |
-| 5 | `layer_5` | 空き（全 `&trans`） | ― |
-| 6 | `layer_6` | 空き（全 `&trans`） | ― |
+| 0 | `0_base_mac` | 通常入力（常時有効な土台レイヤー。Mac向けのIMEキー・修飾キー配置） | ― |
+| 1 | `1_base_win` | Windows検出時の差分オーバーレイ。**現状すべて `&trans`**（Mac版との差分は未設定） | OS自動判定で自動有効化（手動での入り方はなし） |
+| 2 | `2_number` | 数字・記号 | キー位置39 `&lt 2 LANG2` を長押し |
+| 3 | `3_function` | Fキー・矢印・Home/End/PageUp/Down・コピペショートカット(Cmd) | キー位置43 `&lt 3 SPACE` を長押し |
+| 4 | `4_func_win` | `3_function` のWindows差分用に予約。**現状すべて `&trans`**、到達手段なし | ―（未配線） |
+| 5 | `5_mouse` | マウスボタン(MB1/MB3/MB2)用に予約。ほぼ `&trans`、到達手段なし | ―（未配線） |
+| 6 | `6_ble` | Bluetooth設定 + Studio Unlock + トラックボールのスクロール化 | キー位置22 `&lt 6 SEMICOLON` を長押し |
 
-トラックボールは通常はポインター移動、**レイヤー 3 に入っている間だけスクロール**になる
-（`CLine46_R.overlay` の `scroller { layers = <3>; }`）。
+トラックボールは通常はポインター移動、**レイヤー 6 (`6_ble`) に入っている間だけスクロール**になる
+（`CLine46_R.overlay` の `scroller { layers = <6>; }`）。
 
-## レイヤー 0: default_layer
+### OS自動判定によるレイヤー自動切替
+
+`zmk-feature-os-detection`（`CONFIG_ZMK_OS_DETECTION_LAYER_AUTO_SWITCH`、`CLine46_R.conf`）により、
+接続先ホストのOSに応じて `1_base_win` が自動でオン/オフされる。
+
+- macOS / iOS 検出時: 追加のレイヤーは有効化されない（`0_base_mac` が常時有効な土台のため、そのまま使われる）
+- Windows 検出時: `1_base_win`（index 1）がオーバーレイとして自動有効化される
+  （`CONFIG_ZMK_OS_DETECTION_LAYER_WINDOWS=1`）
+- `1_base_win` は現状すべて `&trans` のため、切り替わっても見た目上のキー入力に変化はない
+  （DYA StudioのKeymapタブでレイヤーが光ることでのみ確認できる）。差分を入れたい場合はこのレイヤーの
+  該当キーだけ書き換える。
+
+詳細は [`docs/dya-studio.md`](dya-studio.md) の「OS 自動検出」を参照。
+
+## レイヤー 0: 0_base_mac
 
 ```
  TAB    Q     W     E     R     T   │   Y     U     I     O     P     [
- CTRL   A     S     D     F     G   │   H     J     K     L     -     ]
- SHIFT  Z     X     C     V     B   │   N     M     ,     .   MO(3) RSHIFT
-       ESC   GUI   ALT   LT2   LT1   SFT │ ENT  BSPC          9    DEL
-                        無変換  SPACE 変換
+ CTRL   A     S     D     F     G   │   H     J     K     L    LT6    ]
+ SHIFT  Z     X     C     V     B   │   N     M     ,     .     /   RALT
+       CTRL   GUI   ALT   LT2   SFT   SFT │ ENT   LT3          ESC   ENT
 ```
 
-最下段の複合キー:
+最下段・row2右端の複合キー:
 
-| キー | 長押し | 単押し |
-|---|---|---|
-| `&lt 2 INT_MUHENKAN` | レイヤー 2 (MOUSE) | 無変換 |
-| `&lt 1 SPACE` | レイヤー 1 | スペース |
-| `&mt LSFT INT_HENKAN` | 左シフト | 変換 |
+| キー位置 | behavior | 長押し | 単押し |
+|---|---|---|---|
+| 22 | `&lt 6 SEMICOLON` | レイヤー 6 (`6_ble`) | `;` |
+| 39 | `&lt 2 LANG2` | レイヤー 2 (`2_number`) | LANG2（英数） |
+| 40 | `&mt LEFT_SHIFT SPACE` | 左シフト | スペース |
+| 41 | `&mt LEFT_SHIFT LANG1` | 左シフト | LANG1（かな） |
+| 43 | `&lt 3 SPACE` | レイヤー 3 (`3_function`) | スペース |
 
 `&mt` の設定はキーマップ先頭で `flavor = "balanced"` / `quick-tap-ms = <0>`。
 
-## レイヤー 1: 数字・記号
+## レイヤー 1: 1_base_win
+
+Windows検出時だけ `0_base_mac` の上にオーバーレイとして自動有効化されるレイヤー。
+**現状すべて `&trans`**（46キー全て透過、Macとの差分は未設定）。手動で入る手段は用意していない
+（OS自動判定専用）。
+
+## レイヤー 2: 2_number（数字・記号）
 
 ```
-  ^     =     7     8     9     @   │   (     "     )     ;     !     ?
-  -     +     4     5     6     #   │   [     '     ]     :     &     |
-  /     *     1     2     3     _   │   /     \     ,     .     $     %
-       ESC    0     .     ―     ―    ― │ ENT  BSPC         DEL    ―
+  ^     =     7     8     9     @   │   (     "     )     ;     !     \
+  ―     +     4     5     6     #   │   {     -     }     :     &     |
+  ―     *     1     2     3     _   │   <     _     >     /     $     %
+       ESC    0     ―     ―     ―    ― │ ENT   ―           ?     ―
 ```
 
 `―` は `&trans`（下位レイヤーの割り当てが透過する）。
 
-## レイヤー 2: MOUSE
+## レイヤー 3: 3_function
 
 ```
-  ―     ―    F7    F8    F9   F10   │  C-Y   C-C   C-V   C-X   C-P    ―
-  ―     ―    F4    F5    F6   F11   │  C-Z   左ｸﾘｯｸ  ↑   右ｸﾘｯｸ C-F    ―
-  ―     ―    F1    F2    F3   F12   │  C-A    ←     ↓     →     ―     ―
-        ―     ―     ―     ―     ―   │ ENT   BSPC        HOME   END
+  ―     ―    F7    F8    F9   F10   │   ―   HOME   ↑    END  PGUP    ―
+  ―     ―    F4    F5    F6   F11   │ BSPC   ←     ↓     →  PGDN    ―
+  ―     ―    F1    F2    F3   F12   │  G-A   G-X   G-C   G-V   ―     ―
+        ―     ―     ―     ―     ―    ― │  ―     ―           ―     ―
 ```
 
-## レイヤー 3: SCROLL（Bluetooth + Studio Unlock）
+`G-` は `LG()`（Cmd/GUI修飾）。行3右側は Cmd+A(全選択) / Cmd+X(切り取り) / Cmd+C(コピー) /
+Cmd+V(貼り付け) という Mac 向けショートカット。Windows接続時にCtrl系へ切り替えたい場合は、
+`4_func_win`（現状未配線・全`&trans`）に差分を書いて到達手段を用意する必要がある（今回は未対応）。
+
+## レイヤー 4: 4_func_win
+
+`3_function` のWindows差分を書き込むために予約されたレイヤー。**現状すべて `&trans`**。
+**到達手段が定義されていない**（`&lt 4` / `&mo 4` / `&to 4` がキーマップ内に存在しない）。
+
+## レイヤー 5: 5_mouse
+
+マウスボタン用に予約されたレイヤー。row2 に `MB1`(左クリック) / `MB3`(中クリック) / `MB2`(右クリック)
+のみ配置済みで、他は全て `&trans`。**到達手段が定義されていない**（`&lt 5` / `&mo 5` / `&to 5` が
+キーマップ内に存在しない）。
+
+## レイヤー 6: 6_ble（Bluetooth + Studio Unlock）
 
 ```
 BT_CLR    ―     ―      ―      ―     ―  │   ―     ―     ―     ―     ―     ―
@@ -82,19 +118,11 @@ BT_CLR_ALL ―  BT_SEL4   ―      ―     ―  │   ―     ―     ―     �
           ―  BT_SEL0   ―      ―     ―   ― │ STUDIO_UNLOCK  ―        ―     ―
 ```
 
-- **`&studio_unlock` は右親指の ENTER 位置（キー位置 42）**。`MO(3)` を押しながらここを押すと
-  DYA Studio / ZMK Studio からの書き換えが解除される。
+- **`&studio_unlock` は右親指の ENTER 位置（キー位置 42）**。`0_base_mac` のキー位置22
+  （row2、`L` の右隣）にある `&lt 6 SEMICOLON` を押しながらここを押すと、DYA Studio / ZMK Studio
+  からの書き換えが解除される。
 - BT_SEL は 0〜4 の 5 プロファイル。`BT_CLR` は現在のプロファイルのペアリング削除、
   `BT_CLR_ALL` は全消去。
-
-## レイヤー 4
-
-`SCROLL` から `&studio_unlock` を除いた Bluetooth 設定のみ。**到達手段が定義されていない**
-（`&mo 4` / `&to 4` がキーマップ内に存在しない）。
-
-## レイヤー 5 / 6
-
-全キー `&trans` の空きレイヤー。
 
 ## コンボ
 
@@ -103,8 +131,9 @@ BT_CLR_ALL ―  BT_SEL4   ―      ―     ―  │   ―     ―     ―     �
 | `tab` | 11, 12 | TAB |
 | `shift_tab` | 12, 13 | Shift + TAB |
 
-キー位置 11 は右手上段の `[`、12 は左手中段の `CTRL`、13 は `A`。**左右にまたがる組み合わせ**
-になっているため、意図通りか要確認（`[` + `CTRL` / `CTRL` + `A`）。
+キー位置 11 は右手上段の `[`、12 は左手中段の `CTRL`、13 は `A`（レイヤー再編後も物理的な
+キー配置は変わっていないため、この対応は従来通り）。**左右にまたがる組み合わせ**になっているため、
+意図通りか要確認（`[` + `CTRL` / `CTRL` + `A`）。
 
 ## マクロ / behavior
 
@@ -113,19 +142,18 @@ BT_CLR_ALL ―  BT_SEL4   ―      ―     ―  │   ―     ―     ―     �
 | `to_layer_0` | レイヤー 0 に戻してから引数のキーを送るマクロ（1 引数） |
 | `lt_to_layer_0` | 長押しで `&mo`、単押しで `to_layer_0` を実行する hold-tap（tapping-term 200ms） |
 
-いずれも**現在どのレイヤーからも使われていない**（定義のみ）。
+いずれも**現在どのレイヤーからも使われていない**（定義のみ）。`&to 0` は改名後も引き続き
+`0_base_mac` を指すため、参照先としては問題ない。
 
 ## 要確認事項
 
 現行キーマップを読んで気付いた点。意図的ならこのセクションを消してよい。
 
-1. `default_layer` のキー位置 44（右親指 BSPC の隣）が `&kp NUMBER_9`。他の記号・数字は
-   レイヤー 1 に集約されているため浮いている。
-2. コンボ `tab` / `shift_tab` のキー位置が左右にまたがる（上記）。
-3. レイヤー名 `MOUSE`(2) / `SCROLL`(3) と中身が一致していない。2 は F キーと矢印が主体、
-   3 は Bluetooth 設定。**この名前は DYA Studio の画面にもそのまま表示される**。
-4. レイヤー 4 は到達手段がなく、レイヤー 3 とほぼ重複。
-5. `to_layer_0` / `lt_to_layer_0` が未使用。
+1. コンボ `tab` / `shift_tab` のキー位置が左右にまたがる（上記）。
+2. `to_layer_0` / `lt_to_layer_0` が未使用。
+3. `4_func_win` / `5_mouse` は到達手段がなく、中身もほぼ未着手（意図的な予約レイヤーと思われる）。
+4. `3_function` のコピペショートカットはCmd固定（Mac向け）。Windows接続時の差分は
+   `4_func_win` に未実装。
 
 ## 編集後にすること
 

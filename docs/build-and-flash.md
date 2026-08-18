@@ -133,7 +133,7 @@ XIAO の内部フラッシュにはキーマップ変更・BLE ペアリング�
 1. 左に settings_reset.uf2 → 2. 右に settings_reset.uf2
 3. 左に CLine46_L.uf2      → 4. 右に CLine46_R.uf2
 5. ホスト側の Bluetooth 設定から古い "CLine46" を削除
-6. 右手側で BT_SEL 0（MO(3) + 左手中段の X 位置）を押してから再ペアリング
+6. 右手側で BT_SEL 0（`&lt 6 SEMICOLON`〔右手row2、L の右隣〕長押し + 左手中段の X 位置）を押してから再ペアリング
 ```
 
 設定リセットをすると **DYA Studio で加えた変更もすべて消える**。必要なら事前に
