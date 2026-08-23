@@ -45,8 +45,11 @@ ZMK 設定。ブラウザから設定を動的に変更する **DYA Studio** に
   周辺側の情報を Studio から見る機能は、モジュール本体（`CONFIG_ZMK_WATCHDOG` など）と
   `CONFIG_ZMK_SPLIT_RELAY_EVENT`、スタック設定を **L 側にも**置く必要がある。
   詳細は `docs/dya-studio.md`。
-- `CONFIG_BT_CTLR_ASSERT_OVERHEAD_START=n` を左右から消さない。消すと 4.1 系では
-  無線イベントの遅延で `k_oops()` に落ち、左右が繋がらなくなる（`docs/build-and-flash.md` の 3.5）。
+- `CONFIG_BT_CTLR_ASSERT_OVERHEAD_START=n` を左右から消さない。ただし**この設定自体は
+  実機に反映されておらず、y のままである**ことが判明している（原因不明、Kconfig 警告あり）。
+  無線イベントの遅延で `k_oops()` に落ち再起動する既知の問題は未解決のまま残っており、
+  `CONFIG_ZMK_WATCHDOG_FREEZE_MONITOR_LOWPRIO_QUEUE=n` 等の CPU 負荷軽減策で発生確率を
+  下げているだけの状態（`docs/build-and-flash.md` の 3.5）。
 - `config/west.yml` のモジュールは commit / タグでピンする（`main` 追従にしない）。
 
 ## 編集後に必ず実行する

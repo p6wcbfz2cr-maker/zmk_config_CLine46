@@ -139,7 +139,7 @@ XIAO の内部フラッシュにはキーマップ変更・BLE ペアリング�
 設定リセットをすると **DYA Studio で加えた変更もすべて消える**。必要なら事前に
 DYA Studio の Import/Export からバックアップを取る（`docs/dya-studio.md` 参照）。
 
-## 3.5 4.1 系に上げると左右が繋がらなくなる問題（解決済み）
+## 3.5 4.1 系に上げると左右が繋がらなくなる問題（部分的に未解決）
 
 ZMK v0.3 系から 4.1 系（`main+dya`）に上げた直後、**左右のリンクが張れず、ホストとの BLE も
 不安定**になった。v0.3 系（`firmware/20260501/`）に戻すと正常に動く、という症状。
@@ -155,14 +155,43 @@ PC 0x0002a514 -> lll_adv.c:1041     LL_ASSERT_OVERHEAD  (ホストへのアド�
 `CONFIG_BT_CTLR_ASSERT_OVERHEAD_START`（**Zephyr の既定は `y`**）が `k_oops()` に落としている。
 4.1 系はモジュールが増えて CPU 負荷が重く、リンクを張ろうとするたびに落ちて再起動していた。
 
-対処は左右とも次を入れること（`CLine46_R.conf` / `CLine46_L.conf` に記載済み）。
+Zephyr は公式の回避策として次を用意している。
 
 ```
 CONFIG_BT_CTLR_ASSERT_OVERHEAD_START=n
 ```
 
-Kconfig の help にあるとおり、無効にすると遅れた radio event を捨てて継続するようになる。
-副作用は「スキップが連続すると supervision timeout で切断されうる」こと。
+`CLine46_R.conf` / `CLine46_L.conf` の両方にこれを設定済みだが、**実機では効いていない**。
+ビルドログを見ると次の Kconfig 警告が出ており、`n` を指定しても最終的な `.config` は `y` の
+ままになる（2026-08-23 に GitHub Actions のビルドログで確認）。
+
+```
+warning: BT_CTLR_ASSERT_OVERHEAD_START ... was assigned the value 'n' but got the value 'y'.
+```
+
+`cormoran/zmk-feature-watchdog` の `DESIGN.md` §12.1 に同一事象の詳しい調査記録があり、
+`-D` cmake 引数・`EXTRA_CONF_FILE`・素の `.conf` 記述など複数の方法を試したが、
+`select`/`imply` の類はツリー内に見つからず、原因不明のまま対処を断念したとある
+（「稀にしか起きず、JLink デバッガでの一時停止が誘発要因になっているようだ」との所見）。
+
+つまり **`CONFIG_BT_CTLR_ASSERT_OVERHEAD_START=n` という対処自体が機能していない**。
+これは Zephyr 本体の BLE コントローラ側の脆弱性で、split central 構成
+（`BT_CENTRAL`+`BT_PERIPHERAL`+`BT_OBSERVER` を同時に動かす、ZMK の split central は
+すべてこの条件に該当する）でのマルチロール負荷下に起因するとされており、
+この設定リポジトリや watchdog モジュール自体のコードが原因ではない。
+
+根本修正の手段が無いため、当面は CPU 負荷を下げて衝突（発生）確率を下げる方向で
+緩和している。
+
+- 未使用の `CONFIG_ZMK_PHYSICAL_LAYOUTS_FEATURE` を無効化（`CLine46_R.conf`）
+- `CONFIG_ZMK_WATCHDOG_FREEZE_MONITOR_LOWPRIO_QUEUE=n` でウォッチドッグ自身の
+  フリーズ検出タイマー数を半減（左右両方）。`zmk-feature-watchdog` の Kconfig ヘルプに
+  「このモジュール自身の周期タイマーが BLE コントローラの極めてタイトな無線イベント
+  準備タイミング（~275us）とたまたま衝突し、`LL_ASSERT_OVERHEAD` を誘発しうる」との
+  記載があり、これに対応する
+
+これらは緩和策であって根治ではない。DYA Studio 接続時にいきなり切断される場合、
+この再起動（右手側の central が落ちて USB ごと瞬断される）が疑われる。
 
 あわせて `CONFIG_ZMK_SPLIT_RELAY_EVENT` を **L 側にも**入れた。これは
 "Relay Events from Peripheral to Central" という左右両方の機能だが、上流の構成では
