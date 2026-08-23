@@ -118,5 +118,15 @@
                  &trans   &bt BT_SEL 0   &trans         &trans         &trans   &trans      &studio_unlock   &trans                     &trans   &trans
             >;
         };
+
+        7_reserved_layer {
+            display-name = "7_reserved";
+            bindings = <
+&trans   &trans   &trans   &trans   &trans   &trans                        &trans   &trans   &trans   &trans   &trans   &trans
+&trans   &trans   &trans   &trans   &trans   &trans                        &trans   &trans   &trans   &trans   &trans   &trans
+&trans   &trans   &trans   &trans   &trans   &trans                        &trans   &trans   &trans   &trans   &trans   &trans
+         &trans   &trans   &trans   &trans   &trans   &trans      &trans   &trans                     &trans   &trans
+            >;
+        };
     };
 };
