@@ -82,7 +82,7 @@ Studio の `キーマップ` タブにあるレイヤーの並び替え機能（
 | Trackball のスクロール専用チェーン（レイヤー6 = `6_ble` 中の速度・XY反転） | ○ | `CLine46_R.overlay` の `scroller` が `scroll_runtime_input_processor` を使用 |
 | Trackball（PMW3610 の省電力など詳細設定） | △ | ドライバが `badjeff/zmk-pmw3610-driver`。cormoran の `zmk-driver-pmw3610-with-custom-studio-rpc` ではないため出ない可能性が高い |
 | Connection（BLE プロファイル） | ○ | `zmk-module-ble-management` |
-| Connection（接続先別デフォルトレイヤー） | ○ | `zmk-feature-default-layer` |
+| Connection（接続先別デフォルトレイヤー） | ×（試したが起動時クラッシュのため見送り） | `zmk-feature-default-layer`。詳細は下記「接続先別デフォルトレイヤーは使わない」参照 |
 | Connection（OS 自動検出） | ◎ | `zmk-feature-os-detection`（`3052679f`）+ `CONFIG_ZMK_OS_DETECTION_*` |
 | Connection（OS 別レイヤー自動切替） | ○ | `CONFIG_ZMK_OS_DETECTION_LAYER_AUTO_SWITCH=y`（`0_base_mac`/`1_base_win`を自動切替、実機未確認） |
 | Settings（idle / sleep） | ○ | `zmk-module-settings-rpc` |
@@ -162,6 +162,39 @@ ZMK では**レイヤー0は常時有効な土台レイヤーで無効化でき�
   差分レイヤー。現状すべて `&trans`（差分は未設定）
 
 macOS / iOS 検出時は追加のレイヤー活性化が不要なため、`0_base_mac` がそのまま使われる。
+
+### 接続先別デフォルトレイヤーは使わない（起動時クラッシュの既知問題）
+
+`cormoran/zmk-feature-default-layer` を使うと、DYA Studio の Connection タブ上で
+接続先ごとにデフォルトレイヤーを選択・記憶できるはずだった（`CONFIG_ZMK_DEFAULT_LAYER`）。
+`config/west.yml` には依存としてピン留め済みだが、**実際に有効化して試したところ、
+書き込み直後からキー操作なしで連続的に再起動する症状が発生した**（2026-08-26、実機で確認）。
+
+**原因（`zmk-feature-default-layer` 側のバグと推定）**:
+`src/behaviors/behavior_default_layer.c` の `default_layer_init()` は
+`SYS_INIT`（`APPLICATION` 優先度）で起動直後に呼ばれるが、ソースコード中に
+開発者自身のコメントで次のように明記されている。
+
+```
+// NOTE: endpoint is not initialized yet. zmk_endpoint_get_selected doesn't
+// return proper value.
+```
+
+つまり、まだ正しく初期化されていない endpoint の情報を使って
+`apply_default_layer_config()` を呼んでおり、そこで求めたインデックスが不正な値になると
+`zmk_keymap_layer_activate()` に不正なレイヤー番号を渡してクラッシュする可能性が高い。
+起動直後に毎回同じ場所でクラッシュするため、電源を入れるたびに再起動を繰り返す症状になる。
+
+ビルド自体は成功し、RAM/FLASH使用量も既存構成とほぼ同じ（差100バイト程度）だったため、
+メモリ不足ではなくこの初期化順序の問題が直接の原因と考えられる。GitHub Issuesには
+報告が無く、モジュール自体もREADMEのTODOに未実装項目（`Respect CONFIG_SETTING flag`）が
+残る発展途上の状態。
+
+**対応**: このモジュールの使用を見送り、前述の `zmk-feature-os-detection` の
+`CONFIG_ZMK_OS_DETECTION_LAYER_AUTO_SWITCH`（Studio上には見えないが安定動作する
+ビルド時固定の自動切替方式）のままとする。`config/west.yml` の
+`zmk-feature-default-layer` のピン留め自体は残しているが、`CONFIG_ZMK_DEFAULT_LAYER` は
+有効化しない。将来モジュール側の初期化順序が修正されたら再検討する。
 
 ## 既知の問題: 一時レイヤー（temp-layer）の対象レイヤーがズレる
 
