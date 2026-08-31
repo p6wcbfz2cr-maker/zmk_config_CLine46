@@ -2,8 +2,6 @@ manifest:
   remotes:
     - name: cormoran
       url-base: https://github.com/cormoran
-    - name: badjeff    # <-- PMW3610
-      url-base: https://github.com/badjeff
     - name: caksoylar  # <-- RGB LED
       url-base: https://github.com/caksoylar
     - name: takamaru-fpv  # <-- Battery level smoothing
@@ -72,10 +70,20 @@ manifest:
       revision: 3052679f645b8fc1997275c2eaa6b86bdd55ca01
       import: true
 
+    # PMW3610 トラックボール。badjeff/zmk-pmw3610-driver から差し替えた。
+    # 差し替えの目的は cpi・レストモードの各時間・force-awake などを
+    # DYA Studio の「詳細設定」タブから実行時に変更できるようにすること
+    # （旧ドライバはすべてコンパイル時固定だった）。詳細は docs/dya-studio.md。
+    # import: true は依存の zmk-feature-custom-settings を引くため。
+    # 同モジュールは runtime-combo / runtime-macro / os-detection の import
+    # 経由で既に入っているので、これで新しく増える依存は無い。
+    - name: zmk-driver-pmw3610-with-custom-studio-rpc
+      remote: cormoran
+      # main @ 2026-07-22 (no tags published for this module)
+      revision: 5c34ea0eec246a1c986111417cd779b53144629a
+      import: true
+
     #その他のモジュール
-    - name: zmk-pmw3610-driver
-      remote: badjeff
-      revision: main
     - name: zmk-rgbled-widget
       remote: caksoylar
       revision: main

@@ -49,15 +49,34 @@
 
     trackball: trackball@0 {
         status = "okay";
-        compatible = "pixart,pmw3610-alt";
+        compatible = "cormoran,pmw3610";
         reg = <0>;
         spi-max-frequency = <2000000>;
         irq-gpios = <&xiao_d 8 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+
+        // 起動時のデフォルト CPI。実機での追い込みは DYA Studio の「詳細設定」
+        // （設定キー cpi@trackball、200-3200 の 200 刻み）で行い、良い値が
+        // 固まったらここに反映する。Studio の値はフラッシュにしか無く、
+        // ファーム再書き込みや settings_reset.uf2 で消えるため。
         cpi = <600>;
-        //swap-xy;
+
+        // 設定キーを cpi@trackball のように人間が読める形にする。
+        // 省略するとノードパスの 4 桁ハッシュが使われる。
+        settings-id = "trackball";
+
         evt-type = <INPUT_EV_REL>;
         x-input-code = <INPUT_REL_X>;
         y-input-code = <INPUT_REL_Y>;
+
+        // 軸の入れ替え・反転はこのドライバでは devicetree ではなく
+        // CONFIG_PMW3610_SWAP_XY / _INVERT_X / _INVERT_Y（または Studio の
+        // 詳細設定 swap_xy / invert_x / invert_y）で行う。
+        // 本機の X 反転は下の &trackball_listener 側の zip_xy_transform で
+        // 掛けているので、ここでもセンサー側でも重ねて反転しないこと。
+
+        // disable-burst-read は設定しない（既定 = burst read 有効）。
+        // 上の &spi0 に cs-gpios があり NCS をコントローラが握れるため、
+        // 無効化する理由が無い。
     };
 };
 
