@@ -55,13 +55,17 @@
         irq-gpios = <&xiao_d 8 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 
         // 起動時のデフォルト CPI。実機での追い込みは DYA Studio の「詳細設定」
-        // （設定キー cpi@trackball、200-3200 の 200 刻み）で行い、良い値が
+        // （設定キー cpi@trackbal、200-3200 の 200 刻み）で行い、良い値が
         // 固まったらここに反映する。Studio の値はフラッシュにしか無く、
         // ファーム再書き込みや settings_reset.uf2 で消えるため。
         cpi = <600>;
 
-        // 設定キーを cpi@trackball のように人間が読める形にする。
+        // 設定キーを cpi@trackbal のように人間が読める形にする。
         // 省略するとノードパスの 4 桁ハッシュが使われる。
+        // 注意: ファーム側のバッファは 8 文字ぶんしかないので、この
+        // "trackball"(9文字) は "trackbal" に切り詰められて Studio に出る。
+        // 動作に影響は無いが、変えるなら 8 文字以内にすること。値を変えると
+        // 設定キーが変わり、保存済みの値が引き継がれない点にも注意。
         settings-id = "trackball";
 
         evt-type = <INPUT_EV_REL>;

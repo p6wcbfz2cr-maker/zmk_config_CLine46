@@ -136,7 +136,10 @@ CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE=4096
 ドライバを `cormoran/zmk-driver-pmw3610-with-custom-studio-rpc` に差し替え、
 `CLine46_R.conf` に `CONFIG_ZMK_PMW3610_CUSTOM_SETTINGS=y` を置いたことで、
 以下 13 項目がサブシステム `cormoran__pmw3610` として **Settings（詳細設定）** タブに出る。
-キーは `<項目名>@trackball`（`trackball` は overlay の `settings-id`）。
+キーは `<項目名>@trackbal`。末尾は overlay の `settings-id` 由来だが、**ファーム側の
+バッファが 8 文字ぶんしかない**ため `"trackball"`（9 文字）は `trackbal` に切り詰められる
+（`l` が 1 つ落ちる。誤字ではない）。登録側も参照側も同じ切り詰め後の値を使うので
+動作に影響はない。`settings-id` を付ける際は 8 文字以内に収めるのが無難。
 
 > セクションが出てこない場合、まず**新しいファームを書き込んだか**を疑う。
 > 新ファームなら 4 つ目に `cormoran__pmw3610`（**13 件の設定**）が並ぶ。
