@@ -207,6 +207,49 @@ nm CLine46_R.elf | grep zmk_rpc_custom_subsystem_
 > 両方を大きく変えたい場合は、Studio で詰めるより `CLine46_R.conf` に書いてビルドし直す
 > ほうが確実。
 
+### ⚠️ 値を変えるには Studio Unlock が要る（読むだけなら不要）
+
+PMW3610 の設定は **読み取り = UNSECURE / 書き込み = SECURE** で登録されている。
+そのためロック状態だと **値は見えるのに書き込みだけが黙って失敗する**。
+「チェックを入れても反映されない」「値を変えても戻る」ときは、まずこれを疑う。
+
+判定と対処:
+
+1. `&lt 6 SEMICOLON`（右手 row2、`L` の右隣）長押し + 右親指 ENTER 位置で Unlock
+2. 値を変える
+3. **「再読み込み」**を押して値が残っていれば書き込めている
+
+Studio は RPC が `CONFIG_ZMK_STUDIO_LOCK_IDLE_TIMEOUT_SEC`（既定 600 秒）アイドルすると
+自動でロックし、BLE 切断時にもロックする。しばらく画面を放置してから操作すると
+この状態に入りやすい。
+
+根拠: `zmk-feature-custom-settings` の `src/studio/custom_settings_handler.c`
+
+```c
+static bool needs_unlock(enum zmk_custom_setting_permission permission) {
+    return permission == ZMK_CUSTOM_SETTING_PERMISSION_SECURE && !studio_is_unlocked();
+}
+```
+
+### ⚠️ force_awake は OFF に戻しても再起動まで効かない
+
+ドライバ側の実装上の穴。`pmw3610.c` の `pmw3610_set_performance()` は
+**force-awake が true のときしかレジスタを触らない**。
+
+```c
+if (force_awake_runtime) {
+    ... performance レジスタに 0xF0 を書く ...
+}
+return err;   /* false のときは何もしない = 0xF0 が残ったまま */
+```
+
+ソースにも「When disabled, the performance register is left untouched」と明記されている。
+つまり **ON → OFF と戻しても、センサーは電源を入れ直すまで force awake のまま**。
+
+切り分けで一時的に ON にしたら、**OFF に戻した後は必ず電源を入れ直す**こと。
+さもないと「OFF にしたのに電池の減りが戻らない」「レストモードの効果を検証できない」
+という状態になる。
+
 ### 追い込みの手順
 
 一度に複数変えず、この順で 1 項目ずつ実機確認する。
@@ -352,6 +395,8 @@ devicetree の `temp-layer` プロパティの説明も「Default target layer *
 | キー位置がずれる | `CLine46.dtsi` の physical layout と `default_transform`、`python3 tools/check_keymap.py` |
 | トラックボールが**低速時だけ**反応が鈍い | レストモードからの復帰遅延の可能性が高い。Settings（詳細設定）で `run_downshift_ms` を上げる / `rest1_sample_ms` を下げる / `cpi` を上げる。切り分けは `force_awake` を ON にして消えるか見る。詳細は上記「PMW3610 の詳細設定」 |
 | トラックボールの**向きが逆**になった | `invert_x` / `invert_y` / `swap_xy` を触っていないか。X 反転は overlay の `zip_xy_transform` で既に掛かっており、Studio 側で重ねると二重反転になる |
+| 詳細設定の値を変えても**反映されない・元に戻る** | Studio Unlock していない可能性が高い。PMW3610 の設定は読み取りだけ UNSECURE で、書き込みは SECURE。ロック中は値は見えるが書き込みが黙って失敗する。上記「値を変えるには Studio Unlock が要る」参照 |
+| `force_awake` を OFF にしたのに電池の減りが戻らない | ドライバは force-awake が true のときしかレジスタを触らないため、OFF は再起動まで反映されない。電源を入れ直す。上記「force_awake は OFF に戻しても再起動まで効かない」参照 |
 | OS の判定がおかしい | 「判別の限界」を確認したうえで、Connection タブから手動で上書きする。USB は 200ms、BLE は 1000ms のデバウンス後に確定するので、つないだ直後は `Unknown` のことがある |
 | OS 自動検出を入れてから BLE が不安定 | `CONFIG_ZMK_OS_DETECTION_BLE_GATT_CLIENT_PROBE=n` にして切り分ける。それでも駄目なら `CONFIG_ZMK_OS_DETECTION_BLE=n`（`BT_GATT_AUTHORIZATION_CUSTOM` を select しなくなる） |
 | 周辺側タブが `Peripheral did not respond (timed out after 3000ms)` | `CLine46_L.conf` に `CONFIG_ZMK_SPLIT_RELAY_EVENT=y` と `CONFIG_ZMK_WATCHDOG=y` があるか。前者が無いと relay 用のキャラクタリスティックを公開せず、後者が無いと中継されてきた要求に答える相手がいない（`ZMK_WATCHDOG_SPLIT_RELAY` は `if ZMK_WATCHDOG` の中にある）|
