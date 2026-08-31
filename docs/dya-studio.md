@@ -135,8 +135,13 @@ CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE=4096
 
 ドライバを `cormoran/zmk-driver-pmw3610-with-custom-studio-rpc` に差し替え、
 `CLine46_R.conf` に `CONFIG_ZMK_PMW3610_CUSTOM_SETTINGS=y` を置いたことで、
-以下がサブシステム `cormoran__pmw3610` として **Settings（詳細設定）** タブに出る。
+以下 13 項目がサブシステム `cormoran__pmw3610` として **Settings（詳細設定）** タブに出る。
 キーは `<項目名>@trackball`（`trackball` は overlay の `settings-id`）。
+
+> セクションが出てこない場合、まず**新しいファームを書き込んだか**を疑う。
+> `cormoran__os_detection` / `cormoran__runtime_combo` / `cormoran__runtime_macro`
+> の 3 つしか出ていなければ、それは旧ファーム（badjeff ドライバ）の顔ぶれ。
+> 新ファームなら 4 つ目に `cormoran__pmw3610`（**13 件の設定**）が並ぶ。
 
 | 項目 | 範囲 | 本リポジトリの既定値 | 意味 |
 |---|---|---|---|
