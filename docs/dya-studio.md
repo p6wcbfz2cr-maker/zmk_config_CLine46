@@ -139,9 +139,40 @@ CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE=4096
 キーは `<項目名>@trackball`（`trackball` は overlay の `settings-id`）。
 
 > セクションが出てこない場合、まず**新しいファームを書き込んだか**を疑う。
-> `cormoran__os_detection` / `cormoran__runtime_combo` / `cormoran__runtime_macro`
-> の 3 つしか出ていなければ、それは旧ファーム（badjeff ドライバ）の顔ぶれ。
 > 新ファームなら 4 つ目に `cormoran__pmw3610`（**13 件の設定**）が並ぶ。
+
+### ⚠️ 必要な CONFIG は 2 つある（ハマりどころ）
+
+`CLine46_R.conf` に**両方**要る。片方だけでは詳細設定に何も出ない。
+
+```conf
+CONFIG_ZMK_PMW3610_CUSTOM_SETTINGS=y   # 設定を登録する
+CONFIG_ZMK_PMW3610_STUDIO_RPC=y        # サブシステムをRPCに登録する ← これが無いと出ない
+```
+
+Kconfig 上、`ZMK_PMW3610_CUSTOM_SETTINGS` は `depends on ZMK_CUSTOM_SETTINGS` だけなので
+`STUDIO_RPC` は不要に見えるが、**実際には必須**。理由は
+`zmk-feature-custom-settings` の `src/studio/custom_settings_handler.c` にある
+`custom_subsystem_index_for_identifier()` で、設定を protobuf に詰める前に
+「その `custom_subsystem_id` が RPC サブシステムとして登録済みか」を走査し、
+無ければ `-ENOENT` を返して**その設定を黙って捨てる**ため。
+
+`STUDIO_RPC` を切ると `cormoran__pmw3610` が RPC サブシステム登録に載らないので、
+13 項目が丸ごと Studio に届かない。**ファーム側の設定登録自体は正常に行われている**
+（ELF の `zmk_custom_setting_area` には 13 項目とも入っている）ので、
+症状だけ見ると「なぜか出ない」となり原因に辿り着きにくい。
+
+切り分け方: ELF で登録状況を直接見るのが確実。
+
+```bash
+# 設定が登録されているか（ここに出るのは前提条件でしかない）
+nm CLine46_R.elf | grep pmw3610_setting_
+# RPCサブシステムに載っているか（こちらが表示の可否を決める）
+nm CLine46_R.elf | grep zmk_rpc_custom_subsystem_
+```
+
+後者に `zmk_rpc_custom_subsystem_cormoran__pmw3610` が無ければ、
+`CONFIG_ZMK_PMW3610_STUDIO_RPC=y` が抜けている。
 
 | 項目 | 範囲 | 本リポジトリの既定値 | 意味 |
 |---|---|---|---|

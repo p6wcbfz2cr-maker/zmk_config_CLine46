@@ -55,9 +55,11 @@ ZMK 設定。ブラウザから設定を動的に変更する **DYA Studio** に
   （devicetree の compatible は `cormoran,pmw3610`、CONFIG 接頭辞は `CONFIG_PMW3610_*`）。
   かつて使っていた `badjeff/zmk-pmw3610-driver`（`pixart,pmw3610-alt` /
   `CONFIG_PMW3610_ALT_*`）と**接頭辞も compatible も違う**ので混ぜない。差し替えたのは
-  cpi・レストモードの各時間を DYA Studio から実行時に変更できるようにするため
-  （`CONFIG_ZMK_PMW3610_CUSTOM_SETTINGS=y`）。詳細は `docs/dya-studio.md` の
-  「PMW3610 の詳細設定」。
+  cpi・レストモードの各時間を DYA Studio から実行時に変更できるようにするため。
+  これには `CONFIG_ZMK_PMW3610_CUSTOM_SETTINGS=y` と
+  **`CONFIG_ZMK_PMW3610_STUDIO_RPC=y` の両方**が要る（Kconfig に依存関係は書かれて
+  いないが、後者が無いと設定が RPC 応答から黙って捨てられ Studio に出ない）。
+  詳細は `docs/dya-studio.md` の「PMW3610 の詳細設定」。
 - トラックボールの X 軸反転は `CLine46_R.overlay` の `zip_xy_transform` 側だけで行う。
   センサー側（`CONFIG_PMW3610_INVERT_X` / Studio の `invert_x`）で重ねると二重反転になる。
 
