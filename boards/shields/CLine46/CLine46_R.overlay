@@ -55,18 +55,27 @@
         irq-gpios = <&xiao_d 8 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 
         // 起動時のデフォルト CPI。実機での追い込みは DYA Studio の「詳細設定」
-        // （設定キー cpi@trackbal、200-3200 の 200 刻み）で行い、良い値が
+        // （設定キー cpi@tb、200-3200 の 200 刻み）で行い、良い値が
         // 固まったらここに反映する。Studio の値はフラッシュにしか無く、
         // ファーム再書き込みや settings_reset.uf2 で消えるため。
         cpi = <600>;
 
-        // 設定キーを cpi@trackbal のように人間が読める形にする。
+        // 設定キーを cpi@tb のように人間が読める形にする。
         // 省略するとノードパスの 4 桁ハッシュが使われる。
-        // 注意: ファーム側のバッファは 8 文字ぶんしかないので、この
-        // "trackball"(9文字) は "trackbal" に切り詰められて Studio に出る。
-        // 動作に影響は無いが、変えるなら 8 文字以内にすること。値を変えると
-        // 設定キーが変わり、保存済みの値が引き継がれない点にも注意。
-        settings-id = "trackball";
+        //
+        // 【6文字以内にすること】以前 "trackball" にしていたら、Studio の
+        // 保存が -ENAMETOOLONG で失敗した。フラッシュ保存時のキーは
+        //   "custom_settings" + "/" + "cormoran__pmw3610" + "/" + <キー>
+        //   = 34文字 + <キー>
+        // になり、これが Zephyr の SETTINGS_MAX_NAME_LEN(64) に収まる必要がある
+        // （8 * SETTINGS_MAX_DIR_DEPTH のハードコードで、.conf からは上げられない）。
+        // 最長キーは report_interval_min_ms(22文字) なので
+        //   34 + 22 + 1("@") + N <= 63  →  N <= 6
+        // "trackball" は 8 文字に切り詰められた上で 2 文字超過していた。
+        //
+        // 値を変えると設定キーが変わり、保存済みの値は引き継がれない
+        // （古いキーの記録が NVS に残るが無害）。
+        settings-id = "tb";
 
         evt-type = <INPUT_EV_REL>;
         x-input-code = <INPUT_REL_X>;

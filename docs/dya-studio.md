@@ -136,10 +136,19 @@ CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE=4096
 ドライバを `cormoran/zmk-driver-pmw3610-with-custom-studio-rpc` に差し替え、
 `CLine46_R.conf` に `CONFIG_ZMK_PMW3610_CUSTOM_SETTINGS=y` を置いたことで、
 以下 13 項目がサブシステム `cormoran__pmw3610` として **Settings（詳細設定）** タブに出る。
-キーは `<項目名>@trackbal`。末尾は overlay の `settings-id` 由来だが、**ファーム側の
-バッファが 8 文字ぶんしかない**ため `"trackball"`（9 文字）は `trackbal` に切り詰められる
-（`l` が 1 つ落ちる。誤字ではない）。登録側も参照側も同じ切り詰め後の値を使うので
-動作に影響はない。`settings-id` を付ける際は 8 文字以内に収めるのが無難。
+キーは `<項目名>@tb`。末尾は overlay の `settings-id`。
+
+> **`settings-id` は 6 文字以内にすること。** フラッシュ保存時のキーは
+> `custom_settings/cormoran__pmw3610/<キー>` = **34 文字 + キー** になり、これが Zephyr の
+> `SETTINGS_MAX_NAME_LEN`（**64**、`8 * SETTINGS_MAX_DIR_DEPTH` のハードコード。Kconfig では
+> ないので `.conf` から上げられない）に収まる必要がある。最長キーは
+> `report_interval_min_ms`（22 文字）なので `34 + 22 + 1 + N <= 63` → **N <= 6**。
+>
+> 当初 `"trackball"` にしていたところ、ファーム側のバッファ（8 文字）で `trackbal` に
+> 切り詰められた上に 2 文字超過し、**`report_interval_min_ms` の保存だけが
+> `-ENAMETOOLONG` で失敗**していた。しかも `apply_scope()` は途中で止まらず
+> 「最初のエラー」を返す実装なので、他の 12 項目は保存されているのに
+> **Studio 上は「保存に失敗」に見える**という分かりにくい症状になる。
 
 > セクションが出てこない場合、まず**新しいファームを書き込んだか**を疑う。
 > 新ファームなら 4 つ目に `cormoran__pmw3610`（**13 件の設定**）が並ぶ。
@@ -395,6 +404,8 @@ devicetree の `temp-layer` プロパティの説明も「Default target layer *
 | キー位置がずれる | `CLine46.dtsi` の physical layout と `default_transform`、`python3 tools/check_keymap.py` |
 | トラックボールが**低速時だけ**反応が鈍い | レストモードからの復帰遅延の可能性が高い。Settings（詳細設定）で `run_downshift_ms` を上げる / `rest1_sample_ms` を下げる / `cpi` を上げる。切り分けは `force_awake` を ON にして消えるか見る。詳細は上記「PMW3610 の詳細設定」 |
 | トラックボールの**向きが逆**になった | `invert_x` / `invert_y` / `swap_xy` を触っていないか。X 反転は overlay の `zip_xy_transform` で既に掛かっており、Studio 側で重ねると二重反転になる |
+| 詳細設定で**保存ボタンが失敗する** | `settings-id` が長すぎて保存キーが `SETTINGS_MAX_NAME_LEN`(64) を超えている可能性。1 項目でも超えると、他が保存できていても「失敗」として返る。上記「`settings-id` は 6 文字以内」参照 |
+| キーマップがリセットされ **Studio Unlock のキーが効かない** | `&studio_unlock` はレイヤー6(`6_ble`)のキー位置42。キーマップがリセットされるとこの割り当てが失われ、Unlock 手段そのものが無くなる。キーマップを復元するか、`&studio_unlock` を含むファームを書き直す |
 | 詳細設定の値を変えても**反映されない・元に戻る** | Studio Unlock していない可能性が高い。PMW3610 の設定は読み取りだけ UNSECURE で、書き込みは SECURE。ロック中は値は見えるが書き込みが黙って失敗する。上記「値を変えるには Studio Unlock が要る」参照 |
 | `force_awake` を OFF にしたのに電池の減りが戻らない | ドライバは force-awake が true のときしかレジスタを触らないため、OFF は再起動まで反映されない。電源を入れ直す。上記「force_awake は OFF に戻しても再起動まで効かない」参照 |
 | OS の判定がおかしい | 「判別の限界」を確認したうえで、Connection タブから手動で上書きする。USB は 200ms、BLE は 1000ms のデバウンス後に確定するので、つないだ直後は `Unknown` のことがある |
