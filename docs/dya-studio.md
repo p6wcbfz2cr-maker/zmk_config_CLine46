@@ -80,13 +80,13 @@ Studio の `キーマップ` タブにあるレイヤーの並び替え機能（
 | Combo | ◎ | `zmk-feature-runtime-combo` |
 | Trackball（感度・回転・スクロール・一時レイヤー） | ○ | `zmk-module-runtime-input-processor` |
 | Trackball のスクロール専用チェーン（レイヤー6 = `6_ble` 中の速度・XY反転） | ○ | `CLine46_R.overlay` の `scroller` が `scroll_runtime_input_processor` を使用 |
-| Trackball（PMW3610 の省電力など詳細設定） | △ | ドライバが `badjeff/zmk-pmw3610-driver`。cormoran の `zmk-driver-pmw3610-with-custom-studio-rpc` ではないため出ない可能性が高い |
+| Trackball（PMW3610 の CPI・省電力など詳細設定） | ○ | `zmk-driver-pmw3610-with-custom-studio-rpc` + `CONFIG_ZMK_PMW3610_CUSTOM_SETTINGS=y`。`Settings（詳細設定）` タブに出る。下記「PMW3610 の詳細設定」参照 |
 | Connection（BLE プロファイル） | ○ | `zmk-module-ble-management` |
 | Connection（接続先別デフォルトレイヤー） | ×（試したが起動時クラッシュのため見送り） | `zmk-feature-default-layer`。詳細は下記「接続先別デフォルトレイヤーは使わない」参照 |
 | Connection（OS 自動検出） | ◎ | `zmk-feature-os-detection`（`3052679f`）+ `CONFIG_ZMK_OS_DETECTION_*` |
 | Connection（OS 別レイヤー自動切替） | ○ | `CONFIG_ZMK_OS_DETECTION_LAYER_AUTO_SWITCH=y`（`0_base_mac`/`1_base_win`を自動切替、実機未確認） |
 | Settings（idle / sleep） | ○ | `zmk-module-settings-rpc` |
-| Settings（詳細設定） | ○ | `CONFIG_ZMK_CUSTOM_SETTINGS=y`（`runtime-macro` / `runtime-combo` の `import: true` 経由で取り込まれる） |
+| Settings（詳細設定） | ○ | `CONFIG_ZMK_CUSTOM_SETTINGS=y`（`runtime-macro` / `runtime-combo` の `import: true` 経由で取り込まれる）。PMW3610 の項目もここに出る |
 | Troubleshooting（Device Info） | ◎ | `zmk-feature-device-info` |
 | Troubleshooting（Watchdog: 再起動原因） | ◎ | `zmk-feature-watchdog`。**中央側・周辺側とも確認済み**。周辺側は `CLine46_L.conf` 側の設定が要る（下記） |
 | Troubleshooting（KSCAN 診断） | ○ | `zmk-feature-kscan-diagnostics` |
@@ -117,6 +117,161 @@ CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE=4096
 無ければやはりタイムアウト、スタックが足りなければ**中央側が落ちて Studio が切断**される。
 同じ理屈で、他の Studio 機能を周辺側にも広げたい場合は該当モジュールを L.conf でも
 有効にする必要がある（Device Info、KSCAN 診断など）。
+
+## PMW3610 の詳細設定（CPI・レストモード）
+
+**Trackball タブの「感度」とは別物**なので注意する。
+
+| | Trackball タブの感度 | Settings（詳細設定）の `cpi` |
+|---|---|---|
+| 実体 | `zmk-module-runtime-input-processor` の `scale-multiplier`/`scale-divisor` | センサー PMW3610 の解像度そのもの |
+| 効く場所 | センサーが出したカウントの**後段**での倍率 | センサーが**カウントを出す時点**の細かさ |
+| 低速時の取りこぼし | 直せない（切り捨てられた後なので復元できない） | 直せる |
+
+ゆっくり動かしたときの追従が悪い場合に効くのは後者。前者をいくら上げても、
+1 レポート周期に 1 カウントも溜まらず切り捨てられた動きは戻らない。
+
+### 出てくる項目
+
+ドライバを `cormoran/zmk-driver-pmw3610-with-custom-studio-rpc` に差し替え、
+`CLine46_R.conf` に `CONFIG_ZMK_PMW3610_CUSTOM_SETTINGS=y` を置いたことで、
+以下 13 項目がサブシステム `cormoran__pmw3610` として **Settings（詳細設定）** タブに出る。
+キーは `<項目名>@tb`。末尾は overlay の `settings-id`。
+
+> **`settings-id` は 6 文字以内にすること。** フラッシュ保存時のキーは
+> `custom_settings/cormoran__pmw3610/<キー>` = **34 文字 + キー** になり、これが Zephyr の
+> `SETTINGS_MAX_NAME_LEN`（**64**、`8 * SETTINGS_MAX_DIR_DEPTH` のハードコード。Kconfig では
+> ないので `.conf` から上げられない）に収まる必要がある。最長キーは
+> `report_interval_min_ms`（22 文字）なので `34 + 22 + 1 + N <= 63` → **N <= 6**。
+>
+> 当初 `"trackball"` にしていたところ、ファーム側のバッファ（8 文字）で `trackbal` に
+> 切り詰められた上に 2 文字超過し、**`report_interval_min_ms` の保存だけが
+> `-ENAMETOOLONG` で失敗**していた。しかも `apply_scope()` は途中で止まらず
+> 「最初のエラー」を返す実装なので、他の 12 項目は保存されているのに
+> **Studio 上は「保存に失敗」に見える**という分かりにくい症状になる。
+
+> セクションが出てこない場合、まず**新しいファームを書き込んだか**を疑う。
+> 新ファームなら 4 つ目に `cormoran__pmw3610`（**13 件の設定**）が並ぶ。
+
+### ⚠️ 必要な CONFIG は 2 つある（ハマりどころ）
+
+`CLine46_R.conf` に**両方**要る。片方だけでは詳細設定に何も出ない。
+
+```conf
+CONFIG_ZMK_PMW3610_CUSTOM_SETTINGS=y   # 設定を登録する
+CONFIG_ZMK_PMW3610_STUDIO_RPC=y        # サブシステムをRPCに登録する ← これが無いと出ない
+```
+
+Kconfig 上、`ZMK_PMW3610_CUSTOM_SETTINGS` は `depends on ZMK_CUSTOM_SETTINGS` だけなので
+`STUDIO_RPC` は不要に見えるが、**実際には必須**。理由は
+`zmk-feature-custom-settings` の `src/studio/custom_settings_handler.c` にある
+`custom_subsystem_index_for_identifier()` で、設定を protobuf に詰める前に
+「その `custom_subsystem_id` が RPC サブシステムとして登録済みか」を走査し、
+無ければ `-ENOENT` を返して**その設定を黙って捨てる**ため。
+
+`STUDIO_RPC` を切ると `cormoran__pmw3610` が RPC サブシステム登録に載らないので、
+13 項目が丸ごと Studio に届かない。**ファーム側の設定登録自体は正常に行われている**
+（ELF の `zmk_custom_setting_area` には 13 項目とも入っている）ので、
+症状だけ見ると「なぜか出ない」となり原因に辿り着きにくい。
+
+切り分け方: ELF で登録状況を直接見るのが確実。
+
+```bash
+# 設定が登録されているか（ここに出るのは前提条件でしかない）
+nm CLine46_R.elf | grep pmw3610_setting_
+# RPCサブシステムに載っているか（こちらが表示の可否を決める）
+nm CLine46_R.elf | grep zmk_rpc_custom_subsystem_
+```
+
+後者に `zmk_rpc_custom_subsystem_cormoran__pmw3610` が無ければ、
+`CONFIG_ZMK_PMW3610_STUDIO_RPC=y` が抜けている。
+
+| 項目 | 範囲 | 本リポジトリの既定値 | 意味 |
+|---|---|---|---|
+| `cpi` | 200–3200（200 刻み） | 600 | センサー解像度。上げると低速時の追従が良くなる代わりに高速時が過敏になる |
+| `run_downshift_ms` | 32–8160 | **2000** | 無操作からこの時間で RUN → REST1 に落ちる。短いと動き出しが飲まれる |
+| `rest1_sample_ms` | 10–2550 | **20** | REST1 のサンプル周期。小さいほど復帰が早く、消費電力は増える |
+| `rest1_downshift_ms` | 320–81600 | 5000 | REST1 → REST2 |
+| `rest2_sample_ms` | 10–2550 | 100 | REST2 のサンプル周期 |
+| `rest2_downshift_ms` | 12800–3264000 | 17000 | REST2 → REST3 |
+| `rest3_sample_ms` | 10–2550 | 500 | REST3 のサンプル周期 |
+| `report_interval_min_ms` | 0–1000 | 0 | 最小レポート間隔。0 = 制限なし |
+| `force_awake` | bool | false | ZMK が ACTIVE の間はダウンシフトさせない。反応は最良だが消費電力と CPU 負荷が増える |
+| `smart_algorithm` | bool | true | 表面追従の内部補正 |
+| `swap_xy` / `invert_x` / `invert_y` | bool | false | 軸の入れ替え・反転 |
+
+太字は「ゆっくり動かすと反応が遅い」対策として既定値から変更したもの
+（ドライバ既定は `run_downshift_ms=128` / `rest1_sample_ms=40`）。
+
+> **`invert_x` を ON にしないこと。** 本機の X 軸反転は `CLine46_R.overlay` の
+> `&trackball_listener` にある `zip_xy_transform INPUT_TRANSFORM_X_INVERT` で既に
+> 掛かっている。センサー側でも反転すると二重になって元に戻ってしまう。
+
+> **`*_downshift_ms` の範囲は `*_sample_ms` から決まる。** 上表の範囲は
+> `rest1_downshift_ms` が `rest1_sample_ms × 16`〜`× 4080`、`rest2_downshift_ms` が
+> `rest2_sample_ms × 128`〜`× 32640` として算出されたもので、**ビルド時の
+> `CONFIG_PMW3610_REST*_SAMPLE_TIME_MS` を基準に固定されている**。Studio で
+> `rest1_sample_ms` を変えた後に `rest1_downshift_ms` を書くと、Studio 側の範囲
+> チェックは通ってもドライバ側で（現在のサンプル周期を基準に）拒否されることがある。
+> 両方を大きく変えたい場合は、Studio で詰めるより `CLine46_R.conf` に書いてビルドし直す
+> ほうが確実。
+
+### ⚠️ 値を変えるには Studio Unlock が要る（読むだけなら不要）
+
+PMW3610 の設定は **読み取り = UNSECURE / 書き込み = SECURE** で登録されている。
+そのためロック状態だと **値は見えるのに書き込みだけが黙って失敗する**。
+「チェックを入れても反映されない」「値を変えても戻る」ときは、まずこれを疑う。
+
+判定と対処:
+
+1. `&lt 6 SEMICOLON`（右手 row2、`L` の右隣）長押し + 右親指 ENTER 位置で Unlock
+2. 値を変える
+3. **「再読み込み」**を押して値が残っていれば書き込めている
+
+Studio は RPC が `CONFIG_ZMK_STUDIO_LOCK_IDLE_TIMEOUT_SEC`（既定 600 秒）アイドルすると
+自動でロックし、BLE 切断時にもロックする。しばらく画面を放置してから操作すると
+この状態に入りやすい。
+
+根拠: `zmk-feature-custom-settings` の `src/studio/custom_settings_handler.c`
+
+```c
+static bool needs_unlock(enum zmk_custom_setting_permission permission) {
+    return permission == ZMK_CUSTOM_SETTING_PERMISSION_SECURE && !studio_is_unlocked();
+}
+```
+
+### ⚠️ force_awake は OFF に戻しても再起動まで効かない
+
+ドライバ側の実装上の穴。`pmw3610.c` の `pmw3610_set_performance()` は
+**force-awake が true のときしかレジスタを触らない**。
+
+```c
+if (force_awake_runtime) {
+    ... performance レジスタに 0xF0 を書く ...
+}
+return err;   /* false のときは何もしない = 0xF0 が残ったまま */
+```
+
+ソースにも「When disabled, the performance register is left untouched」と明記されている。
+つまり **ON → OFF と戻しても、センサーは電源を入れ直すまで force awake のまま**。
+
+切り分けで一時的に ON にしたら、**OFF に戻した後は必ず電源を入れ直す**こと。
+さもないと「OFF にしたのに電池の減りが戻らない」「レストモードの効果を検証できない」
+という状態になる。
+
+### 追い込みの手順
+
+一度に複数変えず、この順で 1 項目ずつ実機確認する。
+
+1. まず素の状態でゆっくり動かし、既定値変更だけで解消したか確認する
+2. `cpi` を 600 → 800 → 1000 と上げ、低速の追従と高速の過敏さの折り合いを探す
+3. まだ動き出しが飲まれるなら `run_downshift_ms` を上げる / `rest1_sample_ms` を下げる
+4. それでも残るなら `force_awake` を ON にして切り分ける。ON で消えるならレストモードが
+   原因と確定できる（常用するかは消費電力と相談）
+
+**値が固まったら `CLine46_R.conf` の `CONFIG_PMW3610_*`（と必要なら overlay の `cpi`）に
+反映してコミットする。** Studio の値はフラッシュにしか無く、ファーム再書き込みや
+`settings_reset.uf2` で消える（下記「設定ファイルとの関係」）。
 
 ## OS 自動検出
 
@@ -247,6 +402,12 @@ devicetree の `temp-layer` プロパティの説明も「Default target layer *
 | 期待したタブが「未対応です」になる | `config/west.yml` に該当モジュールがあるか、`CLine46_R.conf` に `*_STUDIO_RPC=y` があるか |
 | フリーズや勝手に再起動する | スタック不足の可能性。`CLine46_R.conf` の `CONFIG_ZMK_STUDIO_RPC_THREAD_STACK_SIZE` / `CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE` などを確認。Troubleshooting タブの Watchdog に再起動原因が残る |
 | キー位置がずれる | `CLine46.dtsi` の physical layout と `default_transform`、`python3 tools/check_keymap.py` |
+| トラックボールが**低速時だけ**反応が鈍い | レストモードからの復帰遅延の可能性が高い。Settings（詳細設定）で `run_downshift_ms` を上げる / `rest1_sample_ms` を下げる / `cpi` を上げる。切り分けは `force_awake` を ON にして消えるか見る。詳細は上記「PMW3610 の詳細設定」 |
+| トラックボールの**向きが逆**になった | `invert_x` / `invert_y` / `swap_xy` を触っていないか。X 反転は overlay の `zip_xy_transform` で既に掛かっており、Studio 側で重ねると二重反転になる |
+| 詳細設定で**保存ボタンが失敗する** | `settings-id` が長すぎて保存キーが `SETTINGS_MAX_NAME_LEN`(64) を超えている可能性。1 項目でも超えると、他が保存できていても「失敗」として返る。上記「`settings-id` は 6 文字以内」参照 |
+| キーマップがリセットされ **Studio Unlock のキーが効かない** | `&studio_unlock` はレイヤー6(`6_ble`)のキー位置42。キーマップがリセットされるとこの割り当てが失われ、Unlock 手段そのものが無くなる。キーマップを復元するか、`&studio_unlock` を含むファームを書き直す |
+| 詳細設定の値を変えても**反映されない・元に戻る** | Studio Unlock していない可能性が高い。PMW3610 の設定は読み取りだけ UNSECURE で、書き込みは SECURE。ロック中は値は見えるが書き込みが黙って失敗する。上記「値を変えるには Studio Unlock が要る」参照 |
+| `force_awake` を OFF にしたのに電池の減りが戻らない | ドライバは force-awake が true のときしかレジスタを触らないため、OFF は再起動まで反映されない。電源を入れ直す。上記「force_awake は OFF に戻しても再起動まで効かない」参照 |
 | OS の判定がおかしい | 「判別の限界」を確認したうえで、Connection タブから手動で上書きする。USB は 200ms、BLE は 1000ms のデバウンス後に確定するので、つないだ直後は `Unknown` のことがある |
 | OS 自動検出を入れてから BLE が不安定 | `CONFIG_ZMK_OS_DETECTION_BLE_GATT_CLIENT_PROBE=n` にして切り分ける。それでも駄目なら `CONFIG_ZMK_OS_DETECTION_BLE=n`（`BT_GATT_AUTHORIZATION_CUSTOM` を select しなくなる） |
 | 周辺側タブが `Peripheral did not respond (timed out after 3000ms)` | `CLine46_L.conf` に `CONFIG_ZMK_SPLIT_RELAY_EVENT=y` と `CONFIG_ZMK_WATCHDOG=y` があるか。前者が無いと relay 用のキャラクタリスティックを公開せず、後者が無いと中継されてきた要求に答える相手がいない（`ZMK_WATCHDOG_SPLIT_RELAY` は `if ZMK_WATCHDOG` の中にある）|
