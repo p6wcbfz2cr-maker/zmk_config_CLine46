@@ -62,6 +62,14 @@ ZMK 設定。ブラウザから設定を動的に変更する **DYA Studio** に
   詳細は `docs/dya-studio.md` の「PMW3610 の詳細設定」。
 - トラックボールの X 軸反転は `CLine46_R.overlay` の `zip_xy_transform` 側だけで行う。
   センサー側（`CONFIG_PMW3610_INVERT_X` / Studio の `invert_x`）で重ねると二重反転になる。
+- **PMW3610 ドライバは自分のフォークを指している**（`p6wcbfz2cr-maker/...` の
+  `fix/motion-overflow`）。上流 `cormoran/...` + OVF 修正 1 コミットの差分。
+  「速くスクロールすると方向が逆になる」の修正で、消すと再発する。上流に取り込まれたら
+  `config/west.yml` の remote を `cormoran` に戻す。詳細は `docs/dya-studio.md` の
+  「スクロール方向の反転」。
+- トラックボールを速くするとき、**CPI を上げると高速時の方向反転が起きやすくなる**
+  （12bit デルタが一周するまでの距離が縮むため）。スクロール速度は
+  `scale_val()` の int16 制限があるので**乗数を上げず除数を下げる**（乗数 17 以上で溢れる）。
 
 ## 編集後に必ず実行する
 
