@@ -14,13 +14,13 @@
 #   tools/flash.sh <uf2 へのパス>
 #
 # 環境変数:
-#   CLINE46_FIRMWARE_DIR  uf2 の置き場（既定: firmware/20260907_pmw3610_motion_overflow）
+#   CLINE46_FIRMWARE_DIR  uf2 の置き場（既定: firmware/20260912_spi_1mhz）
 #   CLINE46_TIMEOUT       ブートローダー待ち時間の秒数（既定: 60）
 
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-FIRMWARE_DIR="${CLINE46_FIRMWARE_DIR:-$REPO_ROOT/firmware/20260907_pmw3610_motion_overflow}"
+FIRMWARE_DIR="${CLINE46_FIRMWARE_DIR:-$REPO_ROOT/firmware/20260912_spi_1mhz}"
 TIMEOUT="${CLINE46_TIMEOUT:-60}"
 
 usage() {
