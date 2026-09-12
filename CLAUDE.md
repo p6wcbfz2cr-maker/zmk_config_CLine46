@@ -67,9 +67,11 @@ ZMK 設定。ブラウザから設定を動的に変更する **DYA Studio** に
   「速くスクロールすると方向が逆になる」の修正で、消すと再発する。上流に取り込まれたら
   `config/west.yml` の remote を `cormoran` に戻す。詳細は `docs/dya-studio.md` の
   「スクロール方向の反転」。
-- トラックボールを速くするとき、**CPI を上げると高速時の方向反転が起きやすくなる**
-  （12bit デルタが一周するまでの距離が縮むため）。スクロール速度は
-  `scale_val()` の int16 制限があるので**乗数を上げず除数を下げる**（乗数 17 以上で溢れる）。
+- **`zmk-module-runtime-input-processor` も自分のフォークを指している**
+  （`p6wcbfz2cr-maker/...` の `fix/scale-int16-overflow`）。上流 `zmk-v0.4.0.0` +
+  修正 1 コミットの差分で、`scale_val()` の int16 切り詰め（＝「速くスクロールすると
+  方向が逆になる」の原因）を int32 化したもの。消すと再発する。上流に取り込まれたら
+  `config/west.yml` の remote を `cormoran` に戻す。
 
 ## 編集後に必ず実行する
 
