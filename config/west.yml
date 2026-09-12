@@ -91,20 +91,10 @@ manifest:
     # import: true は依存の zmk-feature-custom-settings を引くため。
     # 同モジュールは runtime-combo / runtime-macro / os-detection の import
     # 経由で既に入っているので、これで新しく増える依存は無い。
-    #
-    # 【フォークを指している】上流 cormoran/... ではなく自分のフォーク。
-    # 差分は fix/motion-overflow ブランチの1コミットだけ:
-    #   「速くスクロールすると方向が逆になる」の修正。センサーの12bitデルタが
-    #   オーバーフローすると MOTION レジスタ(0x02)の OVF ビットが立ち、
-    #   データシート上そこで蓄積が止まる。上流ドライバは burst の buf[0]
-    #   （= MOTION レジスタ）を読んでいながら一度も参照しておらず、ラップして
-    #   符号が反転した値をそのまま報告していた。OVF が立っていたらそのサンプルを
-    #   捨てるようにした。詳細は docs/dya-studio.md の「スクロール方向の反転」。
-    # 上流に取り込まれたら revision を cormoran 側に戻す。
     - name: zmk-driver-pmw3610-with-custom-studio-rpc
-      remote: p6wcbfz2cr-maker
-      # fix/motion-overflow @ 2026-09-07（上流 5c34ea0 = main @ 2026-07-22 + OVF 修正1件）
-      revision: d3718a3645c458e429c8cfdefde7174523db8a18
+      remote: cormoran
+      # main @ 2026-07-22 (no tags published for this module)
+      revision: 5c34ea0eec246a1c986111417cd779b53144629a
       import: true
 
     #その他のモジュール
