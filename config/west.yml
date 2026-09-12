@@ -2,6 +2,8 @@ manifest:
   remotes:
     - name: cormoran
       url-base: https://github.com/cormoran
+    - name: p6wcbfz2cr-maker  # <-- 自分のフォーク（PMW3610 の OVF 修正）
+      url-base: https://github.com/p6wcbfz2cr-maker
     - name: caksoylar  # <-- RGB LED
       url-base: https://github.com/caksoylar
     - name: takamaru-fpv  # <-- Battery level smoothing
@@ -27,9 +29,21 @@ manifest:
       remote: cormoran
       # main @ 2026-07-06 (zmk-v0.4.0.0 tag not published yet for this module)
       revision: 78f86df9e6c5edaf57bef3ccbd7f360cfdf49291
+    #
+    # 【フォークを指している】上流 cormoran/... ではなく自分のフォーク。
+    # 差分は fix/scale-int16-overflow ブランチの1コミットだけ:
+    #   「速くスクロールすると方向が逆になる」の真犯人。scale_val() が
+    #   乗算結果を int16_t に切り詰めていた。DYA Studio は倍率を 1000分の1 の
+    #   分数にして gcd で約分するだけなので、割り切れない値では3桁の乗数が残る。
+    #   表示は toFixed(2) で丸められるため「0.02x」でも内部は 21/1000 でありうる。
+    #   センサーが12bit上限の2047を出すと 2047×21=42987 が int16 を溢れて -22549 に
+    #   なり、逆スクロールになる。スライダー101段のうち75段が該当する。
+    #   詳細は docs/dya-studio.md の「スクロール方向の反転」。
+    # 上流に取り込まれたら revision を cormoran 側の新タグに戻す。
     - name: zmk-module-runtime-input-processor
-      remote: cormoran
-      revision: zmk-v0.4.0.0
+      remote: p6wcbfz2cr-maker
+      # fix/scale-int16-overflow @ 2026-09-12（上流 zmk-v0.4.0.0 + 修正1件）
+      revision: 90776b94747c60d572bf1f6977a6a63c5b2b55ab
     - name: zmk-behavior-runtime-sensor-rotate
       remote: cormoran
       # main @ 2026-07-05 (zmk-v0.4.0.0 tag not published yet for this module)

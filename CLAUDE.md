@@ -62,6 +62,16 @@ ZMK 設定。ブラウザから設定を動的に変更する **DYA Studio** に
   詳細は `docs/dya-studio.md` の「PMW3610 の詳細設定」。
 - トラックボールの X 軸反転は `CLine46_R.overlay` の `zip_xy_transform` 側だけで行う。
   センサー側（`CONFIG_PMW3610_INVERT_X` / Studio の `invert_x`）で重ねると二重反転になる。
+- **`zmk-module-runtime-input-processor` は自分のフォークを指している**
+  （`p6wcbfz2cr-maker/...` の `fix/scale-int16-overflow`）。上流 `zmk-v0.4.0.0` +
+  修正 1 コミットの差分で、`scale_val()` の int16 切り詰めを int32 化したもの。
+  DYA Studio のスケーリングは 1000 分の分数を gcd 約分するだけなので、**スライダー
+  101 段のうち 75 段で 3 桁の乗数が残り、センサーが 12bit 上限を出すと符号が反転する**。
+  表示は `toFixed(2)` なので画面からは危険な段か判別できない。消すと再発しうる。
+  上流に取り込まれたら `config/west.yml` の remote を `cormoran` に戻す。
+- トラックボールの `spi-max-frequency` は **1MHz**。データシートでは `fSCLK = 2MHz` が
+  **最大値**で、上流の作例は上限ちょうどを使っている。分割キーボードの配線長では
+  余裕が無いため下げてある（上げ直す積極的な理由は無い）。
 
 ## 編集後に必ず実行する
 

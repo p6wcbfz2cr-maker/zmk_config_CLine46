@@ -51,7 +51,19 @@
         status = "okay";
         compatible = "cormoran,pmw3610";
         reg = <0>;
-        spi-max-frequency = <2000000>;
+        // データシート(PMS0003-PMW3610DM-SUDU-DS-R2.4)の推奨動作条件では
+        // Serial Port Clock Frequency fSCLK = 2MHz が「最大値」。上流の作例は
+        // その上限ちょうどの 2000000 だが、分割キーボードの配線長では余裕が無い。
+        //
+        // 実際、速いスクロール中にブラウザのwheelイベントを観測すると、通常
+        // deltaY=+20/deltaX=0 の流れに混じって deltaY≈-520/deltaX≈-495 という
+        // 異常値が3〜5イベントに1回現れていた。横にはほぼ動かしていないのに
+        // X が Y と同程度の大きさになるため実際の動きではあり得ず、12bitラップ
+        // でも説明できない（ほぼ静止しているXはラップしない）。バースト読み出しが
+        // 同じバイトの繰り返しになると復号式の構造上XとYが同じ値になることから、
+        // 転送データの破損と判断して半減させた。詳細は docs/dya-studio.md の
+        // 「スクロール方向の反転」。
+        spi-max-frequency = <1000000>;
         irq-gpios = <&xiao_d 8 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 
         // 起動時のデフォルト CPI。実機での追い込みは DYA Studio の「詳細設定」
