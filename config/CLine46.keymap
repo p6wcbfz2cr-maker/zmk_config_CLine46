@@ -13,17 +13,27 @@
 };
 
 / {
-    combos {
-        compatible = "zmk,combos";
+    runtime_combo_defaults {
+        compatible = "cormoran,runtime-combo-defaults";
 
-        tab {
-            bindings = <&kp TAB>;
+        combo_tab {
             key-positions = <11 12>;
+            bindings = <&kp TAB>;
+            display-name = "Tab";
         };
 
-        shift_tab {
-            bindings = <&kp LS(TAB)>;
+        combo_shift_tab {
             key-positions = <12 13>;
+            bindings = <&kp LS(TAB)>;
+            display-name = "Shift+Tab";
+        };
+    };
+
+    runtime_macro_defaults {
+        rmacro_default_0 {
+            compatible = "cormoran,runtime-macro-default";
+            macro-name = "Test";
+            text = "CLine46";
         };
     };
 
