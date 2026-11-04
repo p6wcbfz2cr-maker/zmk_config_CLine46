@@ -17,6 +17,11 @@
     };
 };
 
+// レイヤー番号はconductorのキーマップ(conductor-keymap1.json)に合わせて振り直した。
+// scroller / temp-layer のレイヤー番号もそれに合わせて更新すること。
+//   layer 5 = scroll(conductorのscrollレイヤーに相当)
+//   layer 4 = mouse(ホールドでマウスクリックレイヤーに相当。一時レイヤーを有効化する場合はこちらを対象にする)
+
 &pinctrl {
     spi0_default: spi0_default {
         group1 {
@@ -68,11 +73,11 @@
         //<&zip_xy_transform INPUT_TRANSFORM_Y_INVERT>;         //Y軸反転
         //<&zip_xy_transform INPUT_TRANSFORM_XY_SWAP>,        //X軸とY軸の入れ替え
         <&zip_xy_transform INPUT_TRANSFORM_X_INVERT>;       //X軸反転
-        //<&zip_temp_layer 2 1000>;                            //オートマウスレイヤーの選択;
+        //<&zip_temp_layer 4 1000>;                            //オートマウスレイヤーの選択(layer 4 = mouse);
 
 
     scroller {
-        layers = <3>;
+        layers = <5>;
         input-processors = 
             // <&zip_xy_transform INPUT_TRANSFORM_XY_SWAP>,        //X軸とY軸の入れ替え
             // <&zip_xy_transform INPUT_TRANSFORM_X_INVERT>,       //X軸反転
