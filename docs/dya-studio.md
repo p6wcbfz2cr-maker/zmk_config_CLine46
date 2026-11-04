@@ -101,7 +101,7 @@ DYA Studio の Combo タブからは編集できない。`rmacro_default_0`（�
 | Combo | ◎ | `zmk-feature-runtime-combo` |
 | Trackball（感度・回転・スクロール・一時レイヤー） | ○ | `zmk-module-runtime-input-processor` |
 | Trackball のスクロール専用チェーン（レイヤー6 = `6_ble` 中の速度・XY反転） | ○ | `CLine46_R.overlay` の `scroller` が `scroll_runtime_input_processor` を使用 |
-| Trackball（PMW3610 の CPI・省電力など詳細設定） | ○ | `zmk-driver-pmw3610-with-custom-studio-rpc` + `CONFIG_ZMK_PMW3610_CUSTOM_SETTINGS=y`。`Settings（詳細設定）` タブに出る。下記「PMW3610 の詳細設定」参照 |
+| Trackball（PMW3610 の CPI・省電力など詳細設定） | ○（`feature/dya-studio` / `main` のみ。`restart/zmk4.1-custom` は badjeff 版ドライバのため Studio には出ない） | `zmk-driver-pmw3610-with-custom-studio-rpc` + `CONFIG_ZMK_PMW3610_CUSTOM_SETTINGS=y`。`Settings（詳細設定）` タブに出る。下記「PMW3610 の詳細設定」参照 |
 | Connection（BLE プロファイル） | ○ | `zmk-module-ble-management` |
 | Connection（接続先別デフォルトレイヤー） | ×（試したが起動時クラッシュのため見送り） | `zmk-feature-default-layer`。詳細は下記「接続先別デフォルトレイヤーは使わない」参照 |
 | Connection（OS 自動検出） | ◎ | `zmk-feature-os-detection`（`3052679f`）+ `CONFIG_ZMK_OS_DETECTION_*` |
@@ -146,6 +146,35 @@ CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE=4096
 有効にする必要がある（Device Info、KSCAN 診断など）。
 
 ## PMW3610 の詳細設定（CPI・レストモード）
+
+> **このブランチ（`restart/zmk4.1-custom`）では下記の Studio 向け説明は当てはまらない。**
+> 以下の「出てくる項目」以降は、ドライバを `cormoran/zmk-driver-pmw3610-with-custom-studio-rpc`
+> に差し替えた `main` / `feature/dya-studio` 側の話。このブランチは `config/west.yml` が
+> `badjeff/zmk-pmw3610-driver`（`compatible = "pixart,pmw3610-alt"`、Kconfig は
+> `CONFIG_PMW3610_ALT_*`）のままなので、**PMW3610 の設定は Studio の Settings（詳細設定）
+> タブには出ない**。変更は `CLine46_R.conf` / `CLine46_R.overlay` に書いてビルドし直す。
+>
+> ### このブランチでの低速時の鈍さ対策（2026-11-05）
+>
+> BLE 接続時にトラックボールをゆっくり・細かく動かすとカーソルが遅くなる症状があった。
+> `CONFIG_BT_PERIPHERAL_PREF_LATENCY` を 30→10→0 と下げても改善しなかったため（USB では
+> 出ない症状だが、BLE 接続レイテンシは原因ではなかった）、センサーのレストモードを疑った。
+> badjeff 版の既定値は `RUN_DOWNSHIFT_TIME_MS=128` / `REST1_SAMPLE_TIME_MS=40` で、
+> 約 0.13 秒止めただけで 40ms 周期のレストモードに入り、動き出しの復帰が遅れる。
+> `main` では同じ症状に対し下記の値で対処済みだったので、同じ値を `CLine46_R.conf` に入れた。
+>
+> | Kconfig | 既定 | 本ブランチ |
+> |---|---|---|
+> | `CONFIG_PMW3610_ALT_RUN_DOWNSHIFT_TIME_MS` | 128 | **2000** |
+> | `CONFIG_PMW3610_ALT_REST1_SAMPLE_TIME_MS` | 40 | **20** |
+>
+> あわせて `CLine46_R.overlay` の `spi-max-frequency` を 2MHz → **1MHz** に戻した
+> （`main` では 2MHz だと速いスクロール中に転送データ破損が出たため。詳細は下記
+> 「スクロール方向の反転」）。
+>
+> 消費電力は増える。これで直らない場合の次の切り分けは、devicetree の `force-awake`
+> プロパティ（センサーを常時 RUN にする）を試し、消えるならレストモードが原因と確定する。
+> 効果の確認結果は実機で確認でき次第、ここに追記すること。
 
 **Trackball タブの「感度」とは別物**なので注意する。
 
@@ -518,7 +547,7 @@ devicetree の `temp-layer` プロパティの説明も「Default target layer *
 | 期待したタブが「未対応です」になる | `config/west.yml` に該当モジュールがあるか、`CLine46_R.conf` に `*_STUDIO_RPC=y` があるか |
 | フリーズや勝手に再起動する | スタック不足の可能性。`CLine46_R.conf` の `CONFIG_ZMK_STUDIO_RPC_THREAD_STACK_SIZE` / `CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE` などを確認。Troubleshooting タブの Watchdog に再起動原因が残る |
 | キー位置がずれる | `CLine46.dtsi` の physical layout と `default_transform`、`python3 tools/check_keymap.py` |
-| トラックボールが**低速時だけ**反応が鈍い | レストモードからの復帰遅延の可能性が高い。Settings（詳細設定）で `run_downshift_ms` を上げる / `rest1_sample_ms` を下げる / `cpi` を上げる。切り分けは `force_awake` を ON にして消えるか見る。詳細は上記「PMW3610 の詳細設定」 |
+| トラックボールが**低速時だけ**反応が鈍い | レストモードからの復帰遅延の可能性が高い（BLE 接続レイテンシは原因ではなかった）。`restart/zmk4.1-custom` では `CLine46_R.conf` の `CONFIG_PMW3610_ALT_RUN_DOWNSHIFT_TIME_MS` / `CONFIG_PMW3610_ALT_REST1_SAMPLE_TIME_MS` を調整する。cormoran 版ドライバの場合は Settings（詳細設定）で `run_downshift_ms` を上げる / `rest1_sample_ms` を下げる / `cpi` を上げる。切り分けは `force_awake` を ON にして消えるか見る。詳細は上記「PMW3610 の詳細設定」 |
 | トラックボールの**向きが逆**になった | `invert_x` / `invert_y` / `swap_xy` を触っていないか。X 反転は overlay の `zip_xy_transform` で既に掛かっており、Studio 側で重ねると二重反転になる |
 | **速くスクロールすると方向が逆になる** | まず **Mac Mouse Fix などマウス/スクロール系の常駐ユーティリティを止めて試す**。過去にこれが原因だった。ファーム側を疑う前にホスト側を確認すること。詳細は上記「スクロール方向の反転」 |
 | 詳細設定で**保存ボタンが失敗する** | `settings-id` が長すぎて保存キーが `SETTINGS_MAX_NAME_LEN`(64) を超えている可能性。1 項目でも超えると、他が保存できていても「失敗」として返る。上記「`settings-id` は 6 文字以内」参照 |

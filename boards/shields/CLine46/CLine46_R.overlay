@@ -56,7 +56,10 @@
         status = "okay";
         compatible = "pixart,pmw3610-alt";
         reg = <0>;
-        spi-max-frequency = <2000000>;
+        // データシートの推奨動作条件では fSCLK=2MHz が「最大値」で、分割キーボードの
+        // 配線長では余裕が無い。mainブランチで2MHzだとスクロール時に転送データ破損
+        // (X/Yが同じ異常値になる)が出たため1MHzに下げている。
+        spi-max-frequency = <1000000>;
         irq-gpios = <&xiao_d 8 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
         cpi = <600>;
         //swap-xy;
