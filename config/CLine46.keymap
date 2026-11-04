@@ -26,27 +26,27 @@
             key-positions = <12 13>;
         };
 
-        L7 {
+        combo_fkeys {
             bindings = <&mo 7>;
             key-positions = <41 42>;
         };
-        MB2 {
+        combo_mb2 {
             bindings = <&mkp MB2>;
             key-positions = <21 22>;
         };
-        MB3 {
+        combo_mb3 {
             bindings = <&mkp MB3>;
             key-positions = <20 22>;
         };
-        L5 {
+        combo_scroll {
             bindings = <&mo 5>;
             key-positions = <20 21>;
         };
-        L13 {
+        combo_gesture {
             bindings = <&mo 11>;
             key-positions = <8 9>;
         };
-        Boot {
+        combo_boot {
             bindings = <&bootloader>;
             key-positions = <5 9 29>;
         };
