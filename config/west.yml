@@ -2,8 +2,6 @@ manifest:
   remotes:
     - name: cormoran
       url-base: https://github.com/cormoran
-    - name: badjeff    # <-- PMW3610
-      url-base: https://github.com/badjeff
     - name: caksoylar  # <-- RGB LED
       url-base: https://github.com/caksoylar
     - name: takamaru-fpv  # <-- Battery level smoothing
@@ -67,10 +65,17 @@ manifest:
       remote: cormoran
       revision: 4f18de45dc27820725d267916b4cdacc0e0b6cf9
 
+    # PMW3610 トラックボール。badjeff/zmk-pmw3610-driver(main, pmw3610-alt)から差し替えた。
+    # badjeff 版だと BLE 接続時に細かく動かすとカーソルが遅れる症状が出たが、
+    # このドライバ(mainブランチのファーム 20260912_final)では出なかったため。
+    # import: true は依存の zmk-feature-custom-settings を引くため(既に他モジュール経由で入っている)。
+    - name: zmk-driver-pmw3610-with-custom-studio-rpc
+      remote: cormoran
+      # main @ 2026-07-22 (no tags published for this module)
+      revision: 5c34ea0eec246a1c986111417cd779b53144629a
+      import: true
+
     #その他のモジュール
-    - name: zmk-pmw3610-driver
-      remote: badjeff
-      revision: main
     - name: zmk-rgbled-widget
       remote: caksoylar
       revision: main

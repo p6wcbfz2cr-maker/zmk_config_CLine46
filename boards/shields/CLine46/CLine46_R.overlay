@@ -54,13 +54,17 @@
 
     trackball: trackball@0 {
         status = "okay";
-        compatible = "pixart,pmw3610-alt";
+        compatible = "cormoran,pmw3610";
         reg = <0>;
         // データシートの推奨動作条件では fSCLK=2MHz が「最大値」で、分割キーボードの
         // 配線長では余裕が無い。mainブランチで2MHzだとスクロール時に転送データ破損
         // (X/Yが同じ異常値になる)が出たため1MHzに下げている。
         spi-max-frequency = <1000000>;
         irq-gpios = <&xiao_d 8 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+
+        // Studio 保存キー用の ID。6文字以内にすること(保存キー長が
+        // SETTINGS_MAX_NAME_LEN=64 に収まる必要がある。詳細は docs/dya-studio.md)。
+        settings-id = "tb";
         cpi = <600>;
         //swap-xy;
         evt-type = <INPUT_EV_REL>;
